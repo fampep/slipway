@@ -1,0 +1,23 @@
+id: plex
+name: Plex
+description: Plex Media Server — stream your movies and shows to every screen.
+category: media
+image: lscr.io/linuxserver/plex:latest
+icon: plex
+ports:
+  - host: "32400"
+    container: "32400"
+volumes:
+  - host: "./config"
+    container: "/config"
+  - host: "./transcode"
+    container: "/transcode"
+  - host: "../../media"
+    container: "/data"
+env:
+  PUID: "1000"
+  PGID: "1000"
+  TZ: UTC
+  VERSION: docker
+webui_port: "32400"
+restart: unless-stopped

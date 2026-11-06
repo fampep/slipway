@@ -1,0 +1,21 @@
+services:
+  slipway:
+    build: .
+    image: slipway:latest
+    container_name: slipway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - slipway-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      SLIPWAY_ADDR: ":8080"
+      SLIPWAY_DATA: /data
+      SLIPWAY_CATALOG: /app/catalog
+      SLIPWAY_WEB: /app/web/dist
+    group_add:
+      - "991"
+
+volumes:
+  slipway-data:

@@ -1,0 +1,22 @@
+id: emby
+name: Emby
+description: Personal media server for organizing and streaming movies, TV, music, and photos.
+category: media
+image: lscr.io/linuxserver/emby:latest
+icon: emby
+ports:
+  - host: "8920"
+    container: "8096"
+  - host: "8921"
+    container: "8920"
+volumes:
+  - host: "./config"
+    container: "/config"
+  - host: "../../media"
+    container: "/data"
+env:
+  PUID: "1000"
+  PGID: "1000"
+  TZ: UTC
+webui_port: "8920"
+restart: unless-stopped

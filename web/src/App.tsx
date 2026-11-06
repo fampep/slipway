@@ -1,0 +1,88 @@
+import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { api, type User } from "./api";
+import { Shell } from "./layout/Shell";
+import { AuthPage } from "./pages/AuthPage";
+import { SetupWizard } from "./pages/SetupWizard";
+import { Apps } from "./pages/Apps";
+import { Catalog } from "./pages/Catalog";
+import { Overview } from "./pages/Overview";
+import { Settings } from "./pages/Settings";
+
+type Gate =
+  | { status: "loading" }
+  | { status: "setup" }
+  | { status: "login" }
+  | { status: "ready"; user: User };
+
+export default function App() {
+  const [gate, setGate] = useState<Gate>({ status: "loading" });
+
+  const refresh = async () => {
+    const setup = await api.setupStatus();
+    if (setup.setup_needed) {
+      setGate({ status: "setup" });
+      return;
+    }
+    try {
+      const me = await api.me();
+      setGate({ status: "ready", user: me });
+    } catch {
+      setGate({ status: "login" });
+    }
+  };
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  if (gate.status === "loading") {
+    return (
+      <div className="min-h-screen grid place-items-center">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="font-display text-3xl text-[var(--color-teal)]"
+        >
+          Slipway
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (gate.status === "setup") {
+    return (
+      <SetupWizard
+        onDone={async () => {
+          await refresh();
+        }}
+      />
+    );
+  }
+
+  if (gate.status === "login") {
+    return (
+      <AuthPage
+        mode="login"
+        onSuccess={async () => {
+          await refresh();
+        }}
+      />
+    );
+  }
+
+  return (
+    <Shell user={gate.user} onLogout={() => setGate({ status: "login" })}>
+      <AnimatePresence mode="wait">
+        <Routes>
+          <Route path="/" element={<Overview />} />
+          <Route path="/apps" element={<Apps />} />
+          <Route path="/catalog" element={<Catalog />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AnimatePresence>
+    </Shell>
+  );
+}

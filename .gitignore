@@ -1,0 +1,17 @@
+data/
+web/dist/
+web/node_modules/
+*.exe
+*.db
+.DS_Store
+.idea/
+.vscode/
+bin/
+.env
+.env.*
+*.pem
+*_key
+*tunnel*.log
+scripts/sec-check.py
+scripts/*-tunnel.log
+

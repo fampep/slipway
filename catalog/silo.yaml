@@ -1,0 +1,34 @@
+id: silo
+name: Silo Server
+description: Modern self-hosted media server with Jellyfin-compatible APIs, transcoding, and a React UI.
+category: media
+image: ghcr.io/silo-server/silo-server:latest
+icon: silo
+ports:
+  - host: "8090"
+    container: "8080"
+  - host: "8097"
+    container: "8096"
+  - host: "13378"
+    container: "13378"
+volumes:
+  - host: "./config"
+    container: "/config"
+  - host: "../../media"
+    container: "/mnt/media"
+    read_only: true
+  - host: "./transcode"
+    container: "/tmp/silo-transcode"
+  - host: "./download-artifacts"
+    container: "/tmp/silo-download-artifacts"
+env:
+  SECRET_KEY: "$GENERATE"
+  PUID: "1000"
+  PGID: "1000"
+  ENABLE_REDIS: "true"
+  TZ: UTC
+webui_port: "8090"
+cap_add:
+  - NET_ADMIN
+stop_timeout: 120
+restart: unless-stopped

@@ -1,0 +1,20 @@
+id: jellyfin
+name: Jellyfin
+description: Free software media system for movies, TV, music, and more.
+category: media
+image: jellyfin/jellyfin:latest
+icon: jellyfin
+ports:
+  - host: "8096"
+    container: "8096"
+volumes:
+  - host: "./config"
+    container: "/config"
+  - host: "./cache"
+    container: "/cache"
+  - host: "../../media"
+    container: "/media"
+env:
+  TZ: UTC
+webui_port: "8096"
+restart: unless-stopped

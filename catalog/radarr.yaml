@@ -1,0 +1,22 @@
+id: radarr
+name: Radarr
+description: Movie collection manager for Usenet and BitTorrent users.
+category: automation
+image: lscr.io/linuxserver/radarr:latest
+icon: radarr
+ports:
+  - host: "7878"
+    container: "7878"
+volumes:
+  - host: "./config"
+    container: "/config"
+  - host: "../../downloads"
+    container: "/downloads"
+  - host: "../../media"
+    container: "/movies"
+env:
+  PUID: "1000"
+  PGID: "1000"
+  TZ: UTC
+webui_port: "7878"
+restart: unless-stopped

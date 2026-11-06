@@ -1,0 +1,18 @@
+id: filebrowser
+name: Filebrowser
+description: Web file manager with a clean UI for browsing and sharing files.
+category: files
+image: filebrowser/filebrowser:latest
+icon: filebrowser
+ports:
+  - host: "8082"
+    container: "80"
+volumes:
+  - host: "./config"
+    container: "/config"
+  - host: "../../downloads"
+    container: "/srv"
+env:
+  FB_DATABASE: /config/filebrowser.db
+webui_port: "8082"
+restart: unless-stopped
