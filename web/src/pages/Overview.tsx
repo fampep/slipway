@@ -13,24 +13,6 @@ import {
 } from '../api'
 import { AppIcon } from '../ui/AppIcon'
 
-function Metric({
-  label,
-  value,
-  hint,
-}: {
-  label: string
-  value: string
-  hint?: string
-}) {
-  return (
-    <div className="surface px-4 py-4">
-      <div className="text-sm text-[var(--color-fog)]">{label}</div>
-      <div className="mt-1.5 text-2xl font-700 tracking-tight">{value}</div>
-      {hint && <div className="mt-1 text-xs text-[var(--color-fog)]">{hint}</div>}
-    </div>
-  )
-}
-
 function Bar({ pct, warn = false }: { pct: number; warn?: boolean }) {
   return (
     <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-panel-2)]">
@@ -49,6 +31,12 @@ function healthTone(h: string) {
   if (h === 'warn') return 'text-[var(--color-amber)]'
   if (h === 'ok') return 'text-[var(--ok)]'
   return 'text-[var(--color-fog)]'
+}
+
+function attentionLabel(app: InstalledApp) {
+  if (app.health === 'unhealthy') return 'unhealthy'
+  if (app.update_available) return 'update available'
+  return 'stopped'
 }
 
 export function Overview() {
@@ -82,10 +70,7 @@ export function Overview() {
 
   const running = useMemo(() => apps.filter((a) => a.running).length, [apps])
   const attention = useMemo(
-    () =>
-      apps.filter(
-        (a) => !a.running || a.health === 'unhealthy' || a.update_available,
-      ),
+    () => apps.filter((a) => !a.running || a.health === 'unhealthy' || a.update_available),
     [apps],
   )
   const disks: DiskVolume[] = metrics?.disks?.length
@@ -106,158 +91,190 @@ export function Overview() {
       : []
 
   return (
-    <div className="space-y-8">
-      <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-700 tracking-tight">Overview</h1>
-          <p className="mt-1.5 text-[var(--color-fog)]">Live metrics, drives, and services on this host.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link to="/apps" className="btn btn-ghost">
-            Apps
-          </Link>
-          <Link to="/catalog" className="btn btn-primary">
-            Catalog
-          </Link>
-        </div>
-      </section>
-
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric label="CPU" value={metrics ? `${metrics.cpu_percent.toFixed(1)}%` : '—'} hint={metrics?.hostname} />
-        <div className="surface px-4 py-4">
-          <div className="text-sm text-[var(--color-fog)]">Memory</div>
-          <div className="mt-1.5 text-2xl font-700 tracking-tight">
-            {metrics ? `${metrics.mem_percent.toFixed(0)}%` : '—'}
+    <div className="space-y-10">
+      <section className="overview-hero relative overflow-hidden rounded-2xl border border-[var(--color-line)] px-6 py-8 sm:px-8 sm:py-10">
+        <div className="overview-hero-glow" aria-hidden />
+        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-xl">
+            <div className="flex items-center gap-2 text-sm text-[var(--color-fog)]">
+              <span
+                className={`inline-block h-2 w-2 rounded-full ${docker ? 'bg-[var(--ok)] live-pulse' : 'bg-[var(--color-rose)]'}`}
+              />
+              {docker ? 'Docker connected' : 'Docker offline'}
+              {metrics?.hostname ? ` · ${metrics.hostname}` : ''}
+            </div>
+            <h1 className="font-display mt-3 text-4xl font-700 tracking-tight sm:text-5xl">
+              Your stack
+            </h1>
+            <p className="mt-3 text-[var(--color-fog)]">
+              {running}/{apps.length || 0} services running
+              {metrics ? ` · up ${formatUptime(metrics.uptime_sec)}` : ''}
+            </p>
           </div>
-          {metrics && (
-            <>
-              <div className="mt-1 text-xs text-[var(--color-fog)]">
+          <div className="flex flex-wrap gap-2">
+            <Link to="/apps" className="btn btn-ghost">
+              Manage apps
+            </Link>
+            <Link to="/catalog" className="btn btn-primary">
+              Browse catalog
+            </Link>
+          </div>
+        </div>
+
+        <div className="relative mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl bg-[rgba(8,12,18,0.45)] px-4 py-3.5">
+            <div className="text-xs text-[var(--color-fog)]">CPU</div>
+            <div className="mt-1 text-2xl font-700 tracking-tight">
+              {metrics ? `${metrics.cpu_percent.toFixed(1)}%` : '—'}
+            </div>
+          </div>
+          <div className="rounded-xl bg-[rgba(8,12,18,0.45)] px-4 py-3.5">
+            <div className="text-xs text-[var(--color-fog)]">Memory</div>
+            <div className="mt-1 text-2xl font-700 tracking-tight">
+              {metrics ? `${metrics.mem_percent.toFixed(0)}%` : '—'}
+            </div>
+            {metrics && (
+              <div className="mt-0.5 text-xs text-[var(--color-fog)]">
                 {formatBytes(metrics.mem_used)} / {formatBytes(metrics.mem_total)}
               </div>
-              <Bar pct={metrics.mem_percent} />
-            </>
-          )}
-        </div>
-        <div className="surface px-4 py-4">
-          <div className="text-sm text-[var(--color-fog)]">Drives</div>
-          <div className="mt-1.5 text-2xl font-700 tracking-tight">{disks.length || '—'}</div>
-          <div className="mt-1 text-xs text-[var(--color-fog)]">
-            {disks.length ? `${disks.filter((d) => d.health === 'ok').length} healthy` : 'scanning…'}
+            )}
           </div>
-        </div>
-        <Metric
-          label="Network"
-          value={metrics ? `↓ ${formatBytes(metrics.net_recv_ps)}/s` : '—'}
-          hint={metrics ? `↑ ${formatBytes(metrics.net_sent_ps)}/s` : undefined}
-        />
-      </section>
-
-      <section className="surface p-5">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-lg font-700">Storage</h2>
-          <span className="text-sm text-[var(--color-fog)]">All mounted drives</span>
-        </div>
-        <div className="mt-4 space-y-4">
-          {disks.length === 0 && (
-            <p className="text-sm text-[var(--color-fog)]">No volumes reported yet.</p>
-          )}
-          {disks.map((d) => (
-            <div key={`${d.device}-${d.mountpoint}`} className="border-t border-[var(--color-line)] pt-4 first:border-0 first:pt-0">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="font-600 truncate">{d.mountpoint || d.device}</div>
-                  <div className="truncate text-xs text-[var(--color-fog)]">
-                    {[d.device, d.fstype].filter(Boolean).join(' · ')}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 text-sm">
-                  <span className={healthTone(d.health)}>{d.health}</span>
-                  <span className="text-[var(--color-fog)]">
-                    {formatBytes(d.used)} / {formatBytes(d.total)}
-                  </span>
-                  <span className="font-600">{d.percent.toFixed(0)}%</span>
-                </div>
-              </div>
-              <Bar pct={d.percent} warn={d.percent > 85} />
+          <div className="rounded-xl bg-[rgba(8,12,18,0.45)] px-4 py-3.5">
+            <div className="text-xs text-[var(--color-fog)]">Drives</div>
+            <div className="mt-1 text-2xl font-700 tracking-tight">{disks.length || '—'}</div>
+            <div className="mt-0.5 text-xs text-[var(--color-fog)]">
+              {disks.length ? `${disks.filter((d) => d.health === 'ok').length} healthy` : 'scanning…'}
             </div>
-          ))}
+          </div>
+          <div className="rounded-xl bg-[rgba(8,12,18,0.45)] px-4 py-3.5">
+            <div className="text-xs text-[var(--color-fog)]">Network</div>
+            <div className="mt-1 text-xl font-700 tracking-tight">
+              {metrics ? `↓ ${formatBytes(metrics.net_recv_ps)}/s` : '—'}
+            </div>
+            {metrics && (
+              <div className="mt-0.5 text-xs text-[var(--color-fog)]">
+                ↑ {formatBytes(metrics.net_sent_ps)}/s
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
       {attention.length > 0 && (
-        <section className="surface border-[var(--color-amber)]/30 p-5">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-700">Needs attention</h2>
-            <span className="text-sm text-[var(--color-amber)]">{attention.length}</span>
+        <section className="surface border-[var(--color-amber)]/35 px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="font-700">Needs attention</h2>
+            <span className="badge badge-warn">{attention.length}</span>
           </div>
-          <div className="mt-3 space-y-2">
+          <div className="mt-3 flex flex-wrap gap-2">
             {attention.map((app) => (
               <Link
                 key={app.id}
                 to={`/apps/${app.id}`}
-                className="flex items-center justify-between gap-3 border-t border-[var(--color-line)] py-2.5 first:border-0 first:pt-0 hover:opacity-90"
+                className="inline-flex items-center gap-2 rounded-full border border-[var(--color-line)] bg-[rgba(8,12,18,0.4)] px-3 py-1.5 text-sm hover:border-[var(--color-teal)]/40"
               >
-                <div className="flex min-w-0 items-center gap-3">
-                  <AppIcon icon={app.icon} name={app.name} size="sm" />
-                  <span className="font-500">{app.name}</span>
-                </div>
-                <span className="text-sm text-[var(--color-fog)]">
-                  {app.health === 'unhealthy'
-                    ? 'unhealthy'
-                    : app.update_available
-                      ? 'update available'
-                      : 'stopped'}
-                </span>
+                <AppIcon icon={app.icon} name={app.name} size="sm" />
+                <span className="font-500">{app.name}</span>
+                <span className="text-[var(--color-fog)]">{attentionLabel(app)}</span>
               </Link>
             ))}
           </div>
         </section>
       )}
 
-      <section className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
-        <div className="surface p-5">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-700">Services</h2>
-            <span className="text-sm text-[var(--color-fog)]">
-              {running}/{apps.length} running
-            </span>
+      <section>
+        <div className="mb-4 flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-700">Services</h2>
+            <p className="mt-1 text-sm text-[var(--color-fog)]">Open any app for logs, stats, and updates.</p>
           </div>
-          <div className="mt-4">
-            {apps.length === 0 && (
-              <p className="py-6 text-sm text-[var(--color-fog)]">
-                Nothing detected yet. Slipway will pick up matching Docker apps already on this host.
-              </p>
-            )}
-            {apps.map((app) => (
-              <Link
+          <Link to="/apps" className="text-sm text-[var(--color-teal)] hover:underline">
+            View all
+          </Link>
+        </div>
+
+        {apps.length === 0 ? (
+          <div className="surface border-dashed px-6 py-14 text-center">
+            <p className="text-[var(--color-fog)]">
+              Nothing detected yet. Slipway will pick up matching Docker apps already on this host.
+            </p>
+            <Link to="/catalog" className="btn btn-primary mt-5">
+              Install from catalog
+            </Link>
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {apps.map((app, i) => (
+              <motion.div
                 key={app.id}
-                to={`/apps/${app.id}`}
-                className="flex items-center justify-between gap-3 border-t border-[var(--color-line)] py-3 first:border-0 first:pt-0 hover:opacity-90"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(i * 0.04, 0.24), duration: 0.3 }}
               >
-                <div className="flex min-w-0 items-center gap-3">
-                  <AppIcon icon={app.icon} name={app.name} size="sm" />
-                  <div className="min-w-0">
+                <Link
+                  to={`/apps/${app.id}`}
+                  className="surface group flex h-full items-start gap-3 p-4 transition hover:border-[var(--color-teal)]/35"
+                >
+                  <AppIcon icon={app.icon} name={app.name} size="md" />
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <div className="font-500">{app.name}</div>
-                      {app.external && <span className="badge badge-accent">on host</span>}
-                      {app.health === 'unhealthy' && <span className="badge badge-danger">unhealthy</span>}
+                      <div className="font-600 group-hover:text-[var(--color-teal)]">{app.name}</div>
+                      <span className={`badge ${app.running ? 'badge-ok' : 'badge-muted'}`}>
+                        {app.running ? 'running' : 'stopped'}
+                      </span>
                     </div>
-                    <div className="truncate text-xs text-[var(--color-fog)]">
+                    <div className="mt-1 truncate text-xs text-[var(--color-fog)]">
                       {app.container_name || app.status}
                     </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {app.external && <span className="badge badge-accent">on host</span>}
+                      {app.health === 'unhealthy' && <span className="badge badge-danger">unhealthy</span>}
+                      {app.health === 'healthy' && <span className="badge badge-ok">healthy</span>}
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
+        <div className="surface p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-lg font-700">Storage</h2>
+            <span className="text-sm text-[var(--color-fog)]">All mounted drives</span>
+          </div>
+          <div className="mt-5 space-y-5">
+            {disks.length === 0 && (
+              <p className="text-sm text-[var(--color-fog)]">No volumes reported yet.</p>
+            )}
+            {disks.map((d) => (
+              <div key={`${d.device}-${d.mountpoint}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-600 truncate">{d.mountpoint || d.device}</div>
+                    <div className="truncate text-xs text-[var(--color-fog)]">
+                      {[d.device, d.fstype].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className={healthTone(d.health)}>{d.health}</span>
+                    <span className="text-[var(--color-fog)]">
+                      {formatBytes(d.used)} / {formatBytes(d.total)}
+                    </span>
+                    <span className="font-600">{d.percent.toFixed(0)}%</span>
                   </div>
                 </div>
-                <span className={`badge ${app.running ? 'badge-ok' : 'badge-muted'}`}>
-                  {app.running ? 'running' : 'stopped'}
-                </span>
-              </Link>
+                <Bar pct={d.percent} warn={d.percent > 85} />
+              </div>
             ))}
           </div>
         </div>
 
-        <div className="surface p-5">
+        <div className="surface p-5 sm:p-6">
           <h2 className="text-lg font-700">Host</h2>
-          <dl className="mt-4 space-y-3 text-sm">
+          <dl className="mt-5 space-y-4 text-sm">
             <div className="flex justify-between gap-4">
               <dt className="text-[var(--color-fog)]">Docker</dt>
               <dd className={docker ? 'text-[var(--ok)]' : 'text-[var(--color-rose)]'}>
@@ -270,12 +287,13 @@ export function Overview() {
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-[var(--color-fog)]">Platform</dt>
-              <dd className="truncate">{metrics?.platform || '—'}</dd>
+              <dd className="truncate text-right">{metrics?.platform || '—'}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt className="text-[var(--color-fog)]">Memory</dt>
+              <dd>{metrics ? `${metrics.mem_percent.toFixed(0)}%` : '—'}</dd>
             </div>
           </dl>
-          <Link to="/apps" className="btn btn-ghost mt-6 w-full">
-            Manage apps
-          </Link>
         </div>
       </section>
     </div>

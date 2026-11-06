@@ -13,6 +13,7 @@
   --ok: #34d399;
   --warn: #fbbf24;
   --font: "Outfit", sans-serif;
+  --font-display: "Sora", "Outfit", sans-serif;
 
   --color-ink: #041016;
   --color-snow: #e8eef7;
@@ -50,10 +51,71 @@ body {
 h1,
 h2,
 h3,
-.brand,
-.font-display {
+.brand {
   font-family: var(--font);
   letter-spacing: -0.03em;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.04em;
+}
+
+.landing-glow {
+  pointer-events: none;
+  position: absolute;
+  inset: -20% 10% auto -10%;
+  height: 70vh;
+  background:
+    radial-gradient(ellipse at 20% 30%, rgba(45, 212, 191, 0.18), transparent 55%),
+    radial-gradient(ellipse at 80% 10%, rgba(56, 189, 248, 0.1), transparent 45%);
+  filter: blur(8px);
+}
+
+.landing-grid {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse at 50% 35%, black 20%, transparent 70%);
+}
+
+.landing-card {
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.42);
+}
+
+.overview-hero {
+  background:
+    radial-gradient(900px 320px at 0% 0%, rgba(45, 212, 191, 0.12), transparent 55%),
+    radial-gradient(700px 280px at 100% 20%, rgba(56, 189, 248, 0.08), transparent 50%),
+    rgba(18, 25, 37, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.overview-hero-glow {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 40%, rgba(45, 212, 191, 0.04) 100%);
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+}
+
+.live-pulse {
+  animation: live-pulse 2.2s ease-in-out infinite;
 }
 
 .font-500 {

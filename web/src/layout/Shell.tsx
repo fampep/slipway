@@ -24,7 +24,7 @@ export function Shell({
       <header className="sticky top-0 z-20 border-b border-[var(--color-line)] bg-[rgba(11,16,22,0.82)] backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-3.5">
           <div className="flex items-center gap-7">
-            <NavLink to="/" className="text-lg font-700 tracking-tight">
+            <NavLink to="/" className="font-display text-lg font-700 tracking-tight">
               Slip<span className="text-[var(--color-teal)]">way</span>
             </NavLink>
             <nav className="hidden items-center gap-5 sm:flex">
