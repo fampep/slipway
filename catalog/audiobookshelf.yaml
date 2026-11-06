@@ -1,0 +1,19 @@
+id: audiobookshelf
+name: Audiobookshelf
+description: Self-hosted audiobook and podcast server.
+category: media
+image: ghcr.io/advplyr/audiobookshelf:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/audiobookshelf.svg
+tags: [media]
+ports:
+  - host: "13378"
+    container: "80"
+volumes:
+  - host: "./config"
+    container: "/config"
+  - host: "./metadata"
+    container: "/metadata"
+  - host: "../../media/audiobooks"
+    container: "/audiobooks"
+webui_port: "13378"
+restart: unless-stopped

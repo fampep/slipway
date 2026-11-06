@@ -1,0 +1,15 @@
+id: nextcloud
+name: Nextcloud
+description: Self-hosted file sync, share, and collaboration.
+category: storage
+image: nextcloud:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/nextcloud.svg
+tags: [storage]
+ports:
+  - host: "8089"
+    container: "80"
+volumes:
+  - host: "./html"
+    container: "/var/www/html"
+webui_port: "8089"
+restart: unless-stopped

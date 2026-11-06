@@ -1,0 +1,17 @@
+id: jellyseerr
+name: Jellyseerr
+description: Request management for Jellyfin and Plex libraries.
+category: request
+image: fallenbagel/jellyseerr:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/jellyseerr.svg
+tags: [request, media]
+ports:
+  - host: "5055"
+    container: "5055"
+volumes:
+  - host: "./config"
+    container: "/app/config"
+env:
+  TZ: UTC
+webui_port: "5055"
+restart: unless-stopped

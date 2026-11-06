@@ -1,0 +1,18 @@
+id: immich-server
+name: Immich
+description: Self-hosted photo and video backup (server). Pair with Immich DB/redis for full stack.
+category: media
+image: ghcr.io/immich-app/immich-server:release
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/immich.svg
+tags: [media, storage]
+ports:
+  - host: "2283"
+    container: "2283"
+volumes:
+  - host: "./upload"
+    container: "/usr/src/app/upload"
+env:
+  DB_HOSTNAME: immich-postgres
+  REDIS_HOSTNAME: immich-redis
+webui_port: "2283"
+restart: unless-stopped

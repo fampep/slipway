@@ -1,0 +1,17 @@
+id: kavita
+name: Kavita
+description: Fast, feature-rich comic and ebook server.
+category: media
+image: jvmilazz0/kavita:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/kavita.svg
+tags: [media]
+ports:
+  - host: "5000"
+    container: "5000"
+volumes:
+  - host: "./config"
+    container: "/kavita/config"
+  - host: "../../media/books"
+    container: "/books"
+webui_port: "5000"
+restart: unless-stopped

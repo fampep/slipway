@@ -1,0 +1,15 @@
+id: homarr
+name: Homarr
+description: Sleek dashboard for your homelab apps and services.
+category: tools
+image: ghcr.io/homarr-labs/homarr:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/homarr.svg
+tags: [tools]
+ports:
+  - host: "7575"
+    container: "7575"
+volumes:
+  - host: "./data"
+    container: "/appdata"
+webui_port: "7575"
+restart: unless-stopped

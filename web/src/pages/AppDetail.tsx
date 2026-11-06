@@ -3,17 +3,20 @@ import { Link, useParams } from 'react-router-dom'
 import {
   api,
   formatBytes,
+  formatRelative,
   type InstalledApp,
   type InspectInfo,
   type StatsInfo,
   type UpdateCheck,
 } from '../api'
 import { AppIcon } from '../ui/AppIcon'
+import { useToast } from '../ui/Toast'
 
 type Tab = 'overview' | 'logs' | 'config' | 'connect'
 
 export function AppDetail() {
   const { id = '' } = useParams()
+  const toast = useToast()
   const [app, setApp] = useState<InstalledApp | null>(null)
   const [tab, setTab] = useState<Tab>('overview')
   const [inspect, setInspect] = useState<InspectInfo | null>(null)
@@ -23,6 +26,7 @@ export function AppDetail() {
   const [busy, setBusy] = useState(false)
   const [update, setUpdate] = useState<UpdateCheck | null>(null)
   const [updateMsg, setUpdateMsg] = useState('')
+  const [proxy, setProxy] = useState<{ nginx: string; caddy: string } | null>(null)
 
   async function refresh() {
     const found = await api.app(id)
@@ -46,7 +50,30 @@ export function AppDetail() {
     if (tab === 'config' || tab === 'connect') {
       api.appInspect(id).then(setInspect).catch(() => setInspect(null))
     }
+    if (tab === 'connect') {
+      api.appProxy(id).then((p) => setProxy({ nginx: p.nginx, caddy: p.caddy })).catch(() => setProxy(null))
+    }
   }, [id, tab, app?.container_name, app?.installed])
+
+  async function toggleFavorite() {
+    if (!app) return
+    const cur = await api.favorites()
+    const set = new Set(cur.ids)
+    if (set.has(app.id)) set.delete(app.id)
+    else set.add(app.id)
+    await api.saveFavorites(Array.from(set))
+    await refresh()
+    toast.push(set.has(app.id) ? 'Pinned' : 'Unpinned', 'ok')
+  }
+
+  function downloadLogs() {
+    const blob = new Blob([logs || ''], { type: 'text/plain' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `${app?.id || 'app'}-logs.txt`
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
 
   async function act(fn: (id: string) => Promise<unknown>) {
     if (!app) return
@@ -164,6 +191,9 @@ export function AppDetail() {
           <button disabled={busy} onClick={() => act(api.restart)} className="btn btn-ghost">
             Restart
           </button>
+          <button disabled={busy} onClick={() => void toggleFavorite()} className="btn btn-ghost">
+            {app.favorite ? 'Unpin' : 'Pin'}
+          </button>
           <button disabled={busy} onClick={checkUpdates} className="btn btn-ghost">
             Check updates
           </button>
@@ -206,7 +236,7 @@ export function AppDetail() {
             </div>
             <div>
               <div className="text-sm text-[var(--color-fog)]">Started</div>
-              <div className="mt-1 text-sm">{inspect?.started ? new Date(inspect.started).toLocaleString() : '—'}</div>
+              <div className="mt-1 text-sm">{formatRelative(inspect?.started)}</div>
             </div>
             <div>
               <div className="text-sm text-[var(--color-fog)]">Category</div>
@@ -284,15 +314,20 @@ export function AppDetail() {
 
       {tab === 'logs' && (
         <div className="space-y-3">
-          <button
-            className="btn btn-ghost !py-1.5"
-            disabled={busy}
-            onClick={() =>
-              api.appLogs(id, 300).then((r) => setLogs(r.logs)).catch((e) => setLogs(e.message))
-            }
-          >
-            Refresh
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              className="btn btn-ghost !py-1.5"
+              disabled={busy}
+              onClick={() =>
+                api.appLogs(id, 300).then((r) => setLogs(r.logs)).catch((e) => setLogs(e.message))
+              }
+            >
+              Refresh
+            </button>
+            <button className="btn btn-ghost !py-1.5" onClick={downloadLogs} disabled={!logs}>
+              Download .txt
+            </button>
+          </div>
           <pre className="surface max-h-[28rem] overflow-auto p-4 font-mono text-xs leading-relaxed text-[var(--color-fog)] whitespace-pre-wrap">
             {logs || 'No logs.'}
           </pre>
@@ -345,8 +380,20 @@ export function AppDetail() {
             <div className="mt-1 font-600">{app.web_port || '—'}</div>
           </div>
           <p className="text-sm text-[var(--color-fog)]">
-            Tip: put app ports behind your reverse proxy, or use Settings → Proxy for a Slipway panel snippet.
+            Open uses Settings → Public URL + this app’s port{app.default_path ? ` + ${app.default_path}` : ''}.
           </p>
+          {proxy && (
+            <div className="space-y-3 pt-2">
+              <h3 className="text-sm font-600">Per-app nginx</h3>
+              <pre className="overflow-auto rounded-xl bg-[var(--bg)] p-3 font-mono text-xs text-[var(--color-fog)] whitespace-pre-wrap">
+                {proxy.nginx}
+              </pre>
+              <h3 className="text-sm font-600">Caddy</h3>
+              <pre className="overflow-auto rounded-xl bg-[var(--bg)] p-3 font-mono text-xs text-[var(--color-fog)] whitespace-pre-wrap">
+                {proxy.caddy}
+              </pre>
+            </div>
+          )}
         </div>
       )}
     </div>

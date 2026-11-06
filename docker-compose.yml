@@ -15,10 +15,12 @@ services:
       - /sys:/host/sys:ro
     environment:
       SLIPWAY_ADDR: ":8080"
+      SLIPWAY_BIND: ${SLIPWAY_BIND:-0.0.0.0}
       SLIPWAY_DATA: /data
       SLIPWAY_CATALOG: /app/catalog
       SLIPWAY_WEB: /app/web/dist
       SLIPWAY_HOST_ROOT: /host
+      SLIPWAY_VERSION: ${SLIPWAY_VERSION:-dev}
       HOST_PROC: /host/proc
       HOST_SYS: /host/sys
       HOST_ETC: /host/etc

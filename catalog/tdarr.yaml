@@ -1,0 +1,27 @@
+id: tdarr
+name: Tdarr
+description: Distributed transcode automation for media libraries.
+category: media
+image: ghcr.io/haveagitagat/tdarr:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/tdarr.svg
+tags: [media, tools]
+ports:
+  - host: "8265"
+    container: "8265"
+  - host: "8266"
+    container: "8266"
+volumes:
+  - host: "./server"
+    container: "/app/server"
+  - host: "./configs"
+    container: "/app/configs"
+  - host: "./logs"
+    container: "/app/logs"
+  - host: "../../media"
+    container: "/media"
+env:
+  TZ: UTC
+  PUID: "1000"
+  PGID: "1000"
+webui_port: "8265"
+restart: unless-stopped

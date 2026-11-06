@@ -13,8 +13,9 @@ COPY go.mod go.sum* ./
 RUN go mod download || true
 COPY . .
 COPY --from=web /src/web/dist ./web/dist
+ARG VERSION=dev
 RUN go mod tidy && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-s -w" -o /out/slipway ./cmd/appbox
+    go build -ldflags="-s -w -X main.version=${VERSION}" -o /out/slipway ./cmd/appbox
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl tzdata \

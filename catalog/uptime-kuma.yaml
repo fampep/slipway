@@ -1,0 +1,15 @@
+id: uptime-kuma
+name: Uptime Kuma
+description: Fancy self-hosted monitoring tool.
+category: tools
+image: louislam/uptime-kuma:1
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/uptime-kuma.svg
+tags: [tools]
+ports:
+  - host: "3001"
+    container: "3001"
+volumes:
+  - host: "./data"
+    container: "/app/data"
+webui_port: "3001"
+restart: unless-stopped

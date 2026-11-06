@@ -43,12 +43,14 @@ export function Overview() {
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [apps, setApps] = useState<InstalledApp[]>([])
   const [docker, setDocker] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     let alive = true
     api.metrics().then((m) => alive && setMetrics(m)).catch(() => {})
     api.apps().then((a) => alive && setApps(a)).catch(() => {})
     api.health().then((h) => alive && setDocker(h.docker)).catch(() => {})
+    api.onboarding().then((o) => alive && setShowOnboarding(!o.done)).catch(() => {})
 
     const ws = new WebSocket(wsURL())
     ws.onmessage = (ev) => {
@@ -69,10 +71,16 @@ export function Overview() {
   }, [])
 
   const running = useMemo(() => apps.filter((a) => a.running).length, [apps])
+  const pinned = useMemo(() => apps.filter((a) => a.favorite), [apps])
   const attention = useMemo(
     () => apps.filter((a) => !a.running || a.health === 'unhealthy' || a.update_available),
     [apps],
   )
+  const listed = useMemo(() => {
+    if (!pinned.length) return apps
+    const ids = new Set(pinned.map((a) => a.id))
+    return [...pinned, ...apps.filter((a) => !ids.has(a.id))]
+  }, [apps, pinned])
   const disks: DiskVolume[] = metrics?.disks?.length
     ? metrics.disks
     : metrics
@@ -160,6 +168,40 @@ export function Overview() {
         </div>
       </section>
 
+      {showOnboarding && (
+        <section className="surface p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-700">Getting started</h2>
+              <p className="mt-1 text-sm text-[var(--color-fog)]">A short checklist for a fresh panel.</p>
+            </div>
+            <button
+              className="btn btn-ghost !py-1.5"
+              onClick={() => {
+                void api.finishOnboarding()
+                setShowOnboarding(false)
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+          <ol className="mt-4 space-y-2 text-sm">
+            <li className="flex justify-between gap-3 border-t border-[var(--color-line)] pt-2">
+              <span>Set your public URL</span>
+              <Link to="/settings" className="text-[var(--color-teal)]">Settings</Link>
+            </li>
+            <li className="flex justify-between gap-3 border-t border-[var(--color-line)] pt-2">
+              <span>Install or adopt an app</span>
+              <Link to="/catalog" className="text-[var(--color-teal)]">Catalog</Link>
+            </li>
+            <li className="flex justify-between gap-3 border-t border-[var(--color-line)] pt-2">
+              <span>Open logs / stats on an app page</span>
+              <Link to="/apps" className="text-[var(--color-teal)]">Apps</Link>
+            </li>
+          </ol>
+        </section>
+      )}
+
       {attention.length > 0 && (
         <section className="surface border-[var(--color-amber)]/35 px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -204,7 +246,7 @@ export function Overview() {
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {apps.map((app, i) => (
+            {listed.map((app, i) => (
               <motion.div
                 key={app.id}
                 initial={{ opacity: 0, y: 8 }}
@@ -219,6 +261,7 @@ export function Overview() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="font-600 group-hover:text-[var(--color-teal)]">{app.name}</div>
+                      {app.favorite && <span className="badge badge-accent">pinned</span>}
                       <span className={`badge ${app.running ? 'badge-ok' : 'badge-muted'}`}>
                         {app.running ? 'running' : 'stopped'}
                       </span>

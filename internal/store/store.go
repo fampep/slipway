@@ -155,6 +155,11 @@ func (s *Store) GetUserByID(id int64) (*User, error) {
 	return u, nil
 }
 
+func (s *Store) UpdatePasswordHash(userID int64, passwordHash string) error {
+	_, err := s.db.Exec(`UPDATE users SET password_hash = ? WHERE id = ?`, passwordHash, userID)
+	return err
+}
+
 func (s *Store) CreateSession(token string, userID int64, expires time.Time) error {
 	_, err := s.db.Exec(
 		`INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`,

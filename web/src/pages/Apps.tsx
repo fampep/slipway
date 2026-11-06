@@ -120,9 +120,30 @@ export function Apps() {
             Running services — including ones already on this host.
           </p>
         </div>
-        <Link to="/catalog" className="btn btn-primary">
-          Browse catalog
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <button
+            className="btn btn-ghost"
+            disabled={bulkBusy}
+            onClick={async () => {
+              setBulkBusy(true)
+              setError('')
+              try {
+                const res = await api.checkAllUpdates(false)
+                const n = res.results.filter((r) => r.update_available).length
+                toast.push(n ? `${n} update(s) available` : 'All up to date', n ? 'info' : 'ok')
+              } catch (e) {
+                toast.push(e instanceof Error ? e.message : 'Check failed', 'error')
+              } finally {
+                setBulkBusy(false)
+              }
+            }}
+          >
+            Check updates
+          </button>
+          <Link to="/catalog" className="btn btn-primary">
+            Browse catalog
+          </Link>
+        </div>
       </section>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

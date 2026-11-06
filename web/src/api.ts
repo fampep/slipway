@@ -17,13 +17,17 @@ export type CatalogApp = {
   docs?: string
   custom?: boolean
   source?: string
+  tags?: string[]
   ports?: { host: string; container: string; protocol?: string }[]
   web_port?: string
+  default_path?: string
+  env?: Record<string, string>
   installed: boolean
   status?: string
   running: boolean
   external?: boolean
   url?: string
+  favorite?: boolean
 }
 
 export type StackMember = {
@@ -57,6 +61,9 @@ export type InstalledApp = {
   installed?: boolean
   url?: string
   web_port?: string
+  default_path?: string
+  tags?: string[]
+  favorite?: boolean
   installed_at?: string
 }
 
@@ -186,12 +193,26 @@ export const api = {
     }),
   logout: () => req<{ ok: boolean }>('/api/logout', { method: 'POST' }),
   me: () => req<User>('/api/me'),
-  getSettings: () => req<{ public_url: string }>('/api/settings'),
-  saveSettings: (body: { public_url: string }) =>
-    req<{ public_url: string }>('/api/settings', {
+  getSettings: () =>
+    req<{ public_url: string; webhook_url?: string; suggested_url?: string; version?: string }>(
+      '/api/settings',
+    ),
+  saveSettings: (body: { public_url: string; webhook_url?: string }) =>
+    req<{ public_url: string; webhook_url?: string; version?: string }>('/api/settings', {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
+  changePassword: (current_password: string, new_password: string) =>
+    req<{ ok: boolean }>('/api/password', {
+      method: 'POST',
+      body: JSON.stringify({ current_password, new_password }),
+    }),
+  version: () => req<{ version: string; name: string }>('/api/version'),
+  favorites: () => req<{ ids: string[] }>('/api/favorites'),
+  saveFavorites: (ids: string[]) =>
+    req<{ ids: string[] }>('/api/favorites', { method: 'PUT', body: JSON.stringify({ ids }) }),
+  onboarding: () => req<{ done: boolean }>('/api/onboarding'),
+  finishOnboarding: () => req<{ done: boolean }>('/api/onboarding', { method: 'POST' }),
   catalog: () => req<CatalogApp[]>('/api/catalog'),
   importPreview: (url: string) =>
     req<ImportPreview>('/api/catalog/import', {
@@ -203,6 +224,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(app),
     }),
+  deleteCustom: (id: string) => req<{ ok: boolean }>(`/api/catalog/custom/${id}`, { method: 'DELETE' }),
+  portCheck: (id: string) =>
+    req<{ ok: boolean; conflicts: { port: string; used_by: string }[] }>(`/api/catalog/${id}/ports`),
   apps: () => req<InstalledApp[]>('/api/apps'),
   app: (id: string) => req<InstalledApp>(`/api/apps/${id}`),
   appLogs: (id: string, tail = 200) =>
@@ -211,6 +235,12 @@ export const api = {
   appStats: (id: string) => req<StatsInfo>(`/api/apps/${id}/stats`),
   appUpdateCheck: (id: string, pull = true) =>
     req<UpdateCheck>(`/api/apps/${id}/update?pull=${pull ? '1' : '0'}`),
+  checkAllUpdates: (pull = false) =>
+    req<{ results: { id: string; name: string; update_available: boolean; error?: string }[] }>(
+      `/api/apps/updates?pull=${pull ? '1' : '0'}`,
+    ),
+  appProxy: (id: string) =>
+    req<{ nginx: string; caddy: string; host: string; port: string }>(`/api/apps/${id}/proxy`),
   bulkApps: (action: 'start' | 'stop' | 'restart', ids: string[]) =>
     req<{ results: { id: string; ok: boolean; error?: string; status?: string; running?: boolean }[] }>(
       '/api/apps/bulk',
@@ -254,10 +284,15 @@ export const api = {
     }
     if (buf.trim()) yield JSON.parse(buf) as ProgressEvent
   },
-  installStream: async function* (id: string): AsyncGenerator<ProgressEvent> {
+  installStream: async function* (
+    id: string,
+    opts?: { env?: Record<string, string> },
+  ): AsyncGenerator<ProgressEvent> {
     const res = await fetch(`/api/apps/${id}/install`, {
       method: 'POST',
       credentials: 'include',
+      headers: opts?.env ? { 'Content-Type': 'application/json' } : undefined,
+      body: opts?.env ? JSON.stringify({ env: opts.env }) : undefined,
     })
     if (!res.ok || !res.body) {
       let msg = res.statusText
@@ -311,4 +346,15 @@ export function formatUptime(sec: number): string {
   if (d > 0) return `${d}d ${h}h`
   if (h > 0) return `${h}h ${m}m`
   return `${m}m`
+}
+
+export function formatRelative(iso?: string): string {
+  if (!iso) return '—'
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return '—'
+  const sec = Math.max(0, Math.floor((Date.now() - t) / 1000))
+  if (sec < 60) return 'just now'
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`
+  return `${Math.floor(sec / 86400)}d ago`
 }

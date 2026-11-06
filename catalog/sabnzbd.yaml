@@ -1,0 +1,21 @@
+id: sabnzbd
+name: SABnzbd
+description: Usenet downloader with a clean web UI.
+category: download
+image: lscr.io/linuxserver/sabnzbd:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/sabnzbd.svg
+tags: [download]
+ports:
+  - host: "8085"
+    container: "8080"
+volumes:
+  - host: "./config"
+    container: "/config"
+  - host: "../../downloads"
+    container: "/downloads"
+env:
+  PUID: "1000"
+  PGID: "1000"
+  TZ: UTC
+webui_port: "8085"
+restart: unless-stopped

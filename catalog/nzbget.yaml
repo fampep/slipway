@@ -1,0 +1,21 @@
+id: nzbget
+name: NZBGet
+description: Efficient usenet downloader focused on performance.
+category: download
+image: lscr.io/linuxserver/nzbget:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/nzbget.svg
+tags: [download]
+ports:
+  - host: "6789"
+    container: "6789"
+volumes:
+  - host: "./config"
+    container: "/config"
+  - host: "../../downloads"
+    container: "/downloads"
+env:
+  PUID: "1000"
+  PGID: "1000"
+  TZ: UTC
+webui_port: "6789"
+restart: unless-stopped

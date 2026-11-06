@@ -1,0 +1,21 @@
+id: bazarr
+name: Bazarr
+description: Subtitle management companion for Sonarr and Radarr.
+category: media
+image: lscr.io/linuxserver/bazarr:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/bazarr.svg
+tags: [media]
+ports:
+  - host: "6767"
+    container: "6767"
+volumes:
+  - host: "./config"
+    container: "/config"
+  - host: "../../media"
+    container: "/movies"
+env:
+  PUID: "1000"
+  PGID: "1000"
+  TZ: UTC
+webui_port: "6767"
+restart: unless-stopped

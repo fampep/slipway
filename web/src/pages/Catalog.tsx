@@ -46,6 +46,18 @@ export function Catalog() {
   async function install(id: string) {
     setBusyId(id)
     setError('')
+    try {
+      const ports = await api.portCheck(id)
+      if (!ports.ok && ports.conflicts.length) {
+        const detail = ports.conflicts.map((c) => `${c.port} used by ${c.used_by}`).join(', ')
+        if (!confirm(`Port conflict: ${detail}. Install anyway?`)) {
+          setBusyId(null)
+          return
+        }
+      }
+    } catch {
+      /* ignore port check failures */
+    }
     setProgress({ status: 'starting', message: 'Starting install…', percent: 0 })
     try {
       for await (const ev of api.installStream(id)) {
@@ -61,6 +73,17 @@ export function Catalog() {
     } finally {
       setBusyId(null)
       setTimeout(() => setProgress(null), 1200)
+    }
+  }
+
+  async function removeCustom(id: string) {
+    if (!confirm(`Remove custom catalog entry ${id}?`)) return
+    try {
+      await api.deleteCustom(id)
+      await refresh()
+      toast.push('Custom app removed', 'ok')
+    } catch (e) {
+      toast.push(e instanceof Error ? e.message : 'Remove failed', 'error')
     }
   }
 
@@ -180,9 +203,21 @@ export function Catalog() {
                     {app.custom && <span className="badge badge-accent">custom</span>}
                   </div>
                   <p className="mt-1 max-w-2xl text-sm text-[var(--color-fog)]">{app.description}</p>
+                  {!!app.tags?.length && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {app.tags.map((t) => (
+                        <span key={t} className="badge badge-muted">{t}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
+                {app.custom && !app.installed && (
+                  <button className="btn btn-danger" onClick={() => void removeCustom(app.id)}>
+                    Delete
+                  </button>
+                )}
                 {app.installed ? (
                   <>
                     <Link to={`/apps/${app.id}`} className="btn btn-ghost">

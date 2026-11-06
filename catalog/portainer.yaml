@@ -1,0 +1,21 @@
+id: portainer
+name: Portainer
+description: Lightweight Docker management UI.
+category: tools
+image: portainer/portainer-ce:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/portainer.svg
+tags: [tools]
+ports:
+  - host: "9443"
+    container: "9443"
+  - host: "9000"
+    container: "9000"
+volumes:
+  - host: "./data"
+    container: "/data"
+  - host: "/var/run/docker.sock"
+    container: "/var/run/docker.sock"
+    read_only: true
+webui_port: "9443"
+default_path: "/"
+restart: unless-stopped

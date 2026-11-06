@@ -73,6 +73,7 @@ else
 fi
 export SLIPWAY_PORT="$PORT"
 export SLIPWAY_IMAGE="$IMAGE"
+export SLIPWAY_BIND="${SLIPWAY_BIND:-0.0.0.0}"
 
 echo "==> Pulling prebuilt image (fast path)"
 PULL_OK=0
@@ -121,6 +122,9 @@ echo "  Open →  http://${IP}:${PORT}"
 echo "  Then create your account in the browser."
 echo
 echo "Update later:  curl -fsSL https://raw.githubusercontent.com/fampep/slipway/main/install.sh | bash"
+echo "Or:            bash $DIR/scripts/slipway-update.sh"
 echo "Uninstall:     bash $DIR/install.sh --uninstall"
+echo "Bind localhost only: SLIPWAY_BIND=127.0.0.1 …"
+echo "Backup data:   docker run --rm -v slipway_slipway-data:/data -v \"\$PWD\":/backup alpine tar czf /backup/slipway-data.tgz -C /data ."
 echo
 docker compose ps

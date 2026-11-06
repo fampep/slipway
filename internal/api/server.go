@@ -85,26 +85,36 @@ func (s *Server) Router() http.Handler {
 		r.Group(func(r chi.Router) {
 			r.Use(s.requireAuth)
 			r.Get("/me", s.handleMe)
+			r.Get("/version", s.handleVersion)
+			r.Post("/password", s.handleChangePassword)
 			r.Get("/settings", s.handleGetSettings)
 			r.Put("/settings", s.handlePutSettings)
+			r.Get("/settings/proxy", s.handleProxySnippet)
+			r.Get("/favorites", s.handleFavorites)
+			r.Put("/favorites", s.handleFavorites)
+			r.Get("/onboarding", s.handleOnboarding)
+			r.Post("/onboarding", s.handleOnboarding)
 			r.Get("/catalog", s.handleCatalog)
 			r.Post("/catalog/import", s.handleImportPreview)
 			r.Post("/catalog/custom", s.handleImportSave)
+			r.Delete("/catalog/custom/{id}", s.handleDeleteCustom)
+			r.Get("/catalog/{id}/ports", s.handlePortCheck)
 			r.Get("/apps", s.handleApps)
 			r.Post("/apps/bulk", s.handleBulkApps)
+			r.Get("/apps/updates", s.handleCheckAllUpdates)
 			r.Get("/apps/{id}", s.handleGetApp)
 			r.Get("/apps/{id}/logs", s.handleAppLogs)
 			r.Get("/apps/{id}/inspect", s.handleAppInspect)
 			r.Get("/apps/{id}/stats", s.handleAppStats)
 			r.Get("/apps/{id}/update", s.handleAppUpdateCheck)
 			r.Post("/apps/{id}/update", s.handleAppUpdate)
+			r.Get("/apps/{id}/proxy", s.handleAppProxySnippet)
 			r.Post("/apps/{id}/install", s.handleInstall)
 			r.Post("/apps/{id}/start", s.handleStart)
 			r.Post("/apps/{id}/stop", s.handleStop)
 			r.Post("/apps/{id}/restart", s.handleRestart)
 			r.Delete("/apps/{id}", s.handleRemove)
 			r.Get("/metrics", s.handleMetrics)
-			r.Get("/settings/proxy", s.handleProxySnippet)
 			r.Get("/export", s.handleExport)
 			r.Get("/ws", s.handleWS)
 		})
@@ -180,6 +190,11 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 }
 
 type userCtxKey struct{}
+
+func userFrom(ctx context.Context) *store.User {
+	u, _ := ctx.Value(userCtxKey{}).(*store.User)
+	return u
+}
 
 func (s *Server) broadcastLoop() {
 	t := time.NewTicker(2 * time.Second)

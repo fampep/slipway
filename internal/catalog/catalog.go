@@ -34,6 +34,7 @@ type App struct {
 	Docs        string            `yaml:"docs" json:"docs,omitempty"`
 	DefaultPath string            `yaml:"default_path" json:"default_path,omitempty"`
 	HealthURL   string            `yaml:"health_url" json:"health_url,omitempty"`
+	Tags        []string          `yaml:"tags" json:"tags,omitempty"`
 	Ports       []Port            `yaml:"ports" json:"ports"`
 	Volumes     []Volume          `yaml:"volumes" json:"volumes"`
 	Env         map[string]string `yaml:"env" json:"env"`

@@ -17,4 +17,6 @@ volumes:
 env:
   TZ: UTC
 webui_port: "8096"
+tags: [media]
+default_path: "/"
 restart: unless-stopped

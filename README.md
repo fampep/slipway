@@ -26,12 +26,13 @@ bash ~/slipway/install.sh --uninstall
 
 ## What you get
 
-- Catalog install / start / stop / restart / update
+- Large catalog (media, *arr, downloaders, tools) + custom imports
 - Host app detect + compose stack view
-- Logs, inspect, stats, bulk actions
+- Logs, inspect, stats, bulk actions, pin/favorites
 - Paste GitHub / compose / image into your catalog
 - Live CPU / memory / multi-drive / network
-- Proxy snippets + config export
+- Proxy snippets (panel + per-app) + config export
+- Optional `SLIPWAY_BIND=127.0.0.1` for localhost-only
 
 ## Update
 

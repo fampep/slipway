@@ -1,0 +1,17 @@
+id: overseerr
+name: Overseerr
+description: Request management and media discovery for Plex.
+category: request
+image: sctx/overseerr:latest
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/overseerr.svg
+tags: [request, media]
+ports:
+  - host: "5056"
+    container: "5055"
+volumes:
+  - host: "./config"
+    container: "/app/config"
+env:
+  TZ: UTC
+webui_port: "5056"
+restart: unless-stopped

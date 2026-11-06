@@ -31,17 +31,21 @@ type appView struct {
 	Status         string         `json:"status"`
 	Running        bool           `json:"running"`
 	External       bool           `json:"external"`
-	Health         string         `json:"health,omitempty"`
-	UpdateAvailable bool          `json:"update_available,omitempty"`
-	ComposeProject string         `json:"compose_project,omitempty"`
-	ComposeService string         `json:"compose_service,omitempty"`
-	Stack          []stackMember  `json:"stack,omitempty"`
-	ContainerID    string         `json:"container_id,omitempty"`
-	ContainerName  string         `json:"container_name,omitempty"`
-	URL            string         `json:"url,omitempty"`
-	WebPort        string         `json:"web_port,omitempty"`
-	Ports          []catalog.Port `json:"ports,omitempty"`
-	InstalledAt    *time.Time     `json:"installed_at,omitempty"`
+	Health          string         `json:"health,omitempty"`
+	UpdateAvailable bool           `json:"update_available,omitempty"`
+	ComposeProject  string         `json:"compose_project,omitempty"`
+	ComposeService  string         `json:"compose_service,omitempty"`
+	Stack           []stackMember  `json:"stack,omitempty"`
+	ContainerID     string         `json:"container_id,omitempty"`
+	ContainerName   string         `json:"container_name,omitempty"`
+	URL             string         `json:"url,omitempty"`
+	WebPort         string         `json:"web_port,omitempty"`
+	DefaultPath     string         `json:"default_path,omitempty"`
+	Tags            []string       `json:"tags,omitempty"`
+	Favorite        bool           `json:"favorite,omitempty"`
+	Ports           []catalog.Port `json:"ports,omitempty"`
+	Env             map[string]string `json:"env,omitempty"`
+	InstalledAt     *time.Time     `json:"installed_at,omitempty"`
 }
 
 type stackMember struct {
@@ -161,12 +165,24 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	publicURL, _ := s.deps.Store.GetSetting("public_url")
-	writeJSON(w, http.StatusOK, map[string]any{"public_url": publicURL})
+	webhook, _ := s.deps.Store.GetSetting("webhook_url")
+	scheme := "http"
+	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+		scheme = "https"
+	}
+	suggested := scheme + "://" + r.Host
+	writeJSON(w, http.StatusOK, map[string]any{
+		"public_url":    publicURL,
+		"webhook_url":   webhook,
+		"suggested_url": suggested,
+		"version":       Version,
+	})
 }
 
 func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		PublicURL string `json:"public_url"`
+		PublicURL  string `json:"public_url"`
+		WebhookURL string `json:"webhook_url"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
@@ -181,7 +197,17 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"public_url": cleaned})
+	webhook := strings.TrimSpace(body.WebhookURL)
+	if webhook != "" {
+		if wh, err := sanitizePublicURL(webhook); err == nil {
+			webhook = wh
+		} else {
+			writeError(w, http.StatusBadRequest, "webhook_url invalid")
+			return
+		}
+	}
+	_ = s.deps.Store.SetSetting("webhook_url", webhook)
+	writeJSON(w, http.StatusOK, map[string]any{"public_url": cleaned, "webhook_url": webhook, "version": Version})
 }
 
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
@@ -250,6 +276,21 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 	if s.deps.Docker == nil || !s.deps.Docker.Available() {
 		writeError(w, http.StatusServiceUnavailable, "docker is not available")
 		return
+	}
+
+	// Optional env overrides from JSON body (ignore empty / non-json).
+	if r.Body != nil && r.ContentLength != 0 {
+		var body struct {
+			Env map[string]string `json:"env"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err == nil && len(body.Env) > 0 {
+			if app.Env == nil {
+				app.Env = map[string]string{}
+			}
+			for k, v := range body.Env {
+				app.Env[k] = v
+			}
+		}
 	}
 
 	flusher, ok := w.(http.Flusher)
@@ -390,6 +431,7 @@ func (s *Server) syncInstalled(ctx context.Context) ([]appView, error) {
 		return nil, err
 	}
 	live := s.liveByAppID(ctx)
+	favs := s.favoriteSet(ctx)
 	out := make([]appView, 0, len(installed))
 	for _, inst := range installed {
 		app, ok := s.deps.Catalog.Get(inst.CatalogID)
@@ -397,6 +439,7 @@ func (s *Server) syncInstalled(ctx context.Context) ([]appView, error) {
 			app = catalog.App{ID: inst.CatalogID, Name: inst.CatalogID}
 		}
 		v := s.catalogToViewInstalled(app, inst)
+		v.Favorite = favs[inst.CatalogID]
 		if c, ok := live[inst.CatalogID]; ok {
 			v.Status = c.State
 			v.Running = c.Running
@@ -417,6 +460,9 @@ func (s *Server) syncInstalled(ctx context.Context) ([]appView, error) {
 					}
 				}
 			}
+		}
+		if v.Health == "" && app.HealthURL != "" && v.Running {
+			v.Health = s.probeHealthURL(ctx, app.HealthURL)
 		}
 		out = append(out, v)
 	}
@@ -512,6 +558,9 @@ func (s *Server) catalogToView(app catalog.App) appView {
 		Source:      app.Source,
 		Ports:       app.Ports,
 		WebPort:     app.WebUIPort,
+		DefaultPath: app.DefaultPath,
+		Tags:        app.Tags,
+		Env:         app.Env,
 		URL:         s.webURL(app),
 	}
 }

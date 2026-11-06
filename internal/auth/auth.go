@@ -126,6 +126,24 @@ func (s *Service) Logout(token string) error {
 	return s.store.DeleteSession(token)
 }
 
+func (s *Service) ChangePassword(userID int64, current, next string) error {
+	if err := ValidatePassword(next); err != nil {
+		return err
+	}
+	user, err := s.store.GetUserByID(userID)
+	if err != nil || user == nil {
+		return ErrInvalidCreds
+	}
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(current)) != nil {
+		return errors.New("current password is incorrect")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(next), bcryptCost)
+	if err != nil {
+		return err
+	}
+	return s.store.UpdatePasswordHash(userID, string(hash))
+}
+
 func (s *Service) UserFromRequest(r *http.Request) (*store.User, error) {
 	c, err := r.Cookie(CookieName)
 	if err != nil || c.Value == "" {
