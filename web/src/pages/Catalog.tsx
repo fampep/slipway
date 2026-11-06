@@ -3,8 +3,12 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { api, type CatalogApp, type ProgressEvent } from '../api'
 import { AppIcon } from '../ui/AppIcon'
+import { useToast } from '../ui/Toast'
+
+const FEATURED = ['silo', 'jellyfin', 'plex', 'emby', 'radarr', 'sonarr']
 
 export function Catalog() {
+  const toast = useToast()
   const [apps, setApps] = useState<CatalogApp[]>([])
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('all')
@@ -23,6 +27,11 @@ export function Catalog() {
   const categories = useMemo(() => {
     const set = new Set(apps.map((a) => a.category))
     return ['all', ...Array.from(set).sort()]
+  }, [apps])
+
+  const featured = useMemo(() => {
+    const byId = new Map(apps.map((a) => [a.id, a]))
+    return FEATURED.map((id) => byId.get(id)).filter(Boolean) as CatalogApp[]
   }, [apps])
 
   const filtered = useMemo(() => {
@@ -44,8 +53,11 @@ export function Catalog() {
         if (ev.status === 'error') throw new Error(ev.message)
       }
       await refresh()
+      toast.push('Installed', 'ok')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Install failed')
+      const msg = e instanceof Error ? e.message : 'Install failed'
+      setError(msg)
+      toast.push(msg, 'error')
     } finally {
       setBusyId(null)
       setTimeout(() => setProgress(null), 1200)
@@ -56,9 +68,9 @@ export function Catalog() {
     <div className="space-y-7">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-3xl font-700 tracking-tight">Catalog</h1>
+          <h1 className="font-display text-3xl font-700 tracking-tight">Catalog</h1>
           <p className="mt-1.5 text-[var(--color-fog)]">
-            Install apps, or see what’s already active on this host.
+            One-click installs — or paste your own from GitHub.
           </p>
         </div>
         <Link to="/catalog/add" className="btn btn-primary">
@@ -66,11 +78,41 @@ export function Catalog() {
         </Link>
       </section>
 
+      {!q && category === 'all' && featured.length > 0 && (
+        <section>
+          <h2 className="text-sm font-600 tracking-wide text-[var(--color-fog)] uppercase">Featured</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {featured.map((app) => (
+              <div key={app.id} className="surface flex items-center gap-3 p-4">
+                <AppIcon icon={app.icon} name={app.name} size="md" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-600">{app.name}</div>
+                  <div className="truncate text-xs text-[var(--color-fog)]">{app.description}</div>
+                </div>
+                {app.installed ? (
+                  <Link to={`/apps/${app.id}`} className="btn btn-ghost !py-1.5 !text-sm">
+                    Open
+                  </Link>
+                ) : (
+                  <button
+                    disabled={busyId !== null}
+                    onClick={() => install(app.id)}
+                    className="btn btn-primary !py-1.5 !text-sm"
+                  >
+                    {busyId === app.id ? '…' : 'Install'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search"
+          placeholder="Search apps"
           className="field sm:max-w-xs"
         />
         <div className="flex flex-wrap gap-1.5">
@@ -114,41 +156,56 @@ export function Catalog() {
         )}
       </AnimatePresence>
 
-      <div className="surface divide-y divide-[var(--color-line)] overflow-hidden">
-        {filtered.map((app) => (
-          <div
-            key={app.id}
-            className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <div className="flex min-w-0 items-start gap-3">
-              <AppIcon icon={app.icon} name={app.name} size="md" />
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-base font-700">{app.name}</h3>
-                  <span className="badge badge-muted capitalize">{app.category}</span>
-                  {app.installed && app.external && <span className="badge badge-accent">on host</span>}
+      {filtered.length === 0 ? (
+        <div className="surface border-dashed px-6 py-12 text-center">
+          <p className="text-[var(--color-fog)]">No apps match. Try another search, or add your own.</p>
+          <Link to="/catalog/add" className="btn btn-primary mt-5">
+            Add from GitHub
+          </Link>
+        </div>
+      ) : (
+        <div className="surface divide-y divide-[var(--color-line)] overflow-hidden">
+          {filtered.map((app) => (
+            <div
+              key={app.id}
+              className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="flex min-w-0 items-start gap-3">
+                <AppIcon icon={app.icon} name={app.name} size="md" />
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="text-base font-700">{app.name}</h3>
+                    <span className="badge badge-muted capitalize">{app.category}</span>
+                    {app.installed && app.external && <span className="badge badge-accent">on host</span>}
+                    {app.custom && <span className="badge badge-accent">custom</span>}
+                  </div>
+                  <p className="mt-1 max-w-2xl text-sm text-[var(--color-fog)]">{app.description}</p>
                 </div>
-                <p className="mt-1 max-w-2xl text-sm text-[var(--color-fog)]">{app.description}</p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                {app.installed ? (
+                  <>
+                    <Link to={`/apps/${app.id}`} className="btn btn-ghost">
+                      Details
+                    </Link>
+                    <span className={`badge self-center ${app.running ? 'badge-ok' : 'badge-muted'}`}>
+                      {app.running ? 'Active' : 'Installed'}
+                    </span>
+                  </>
+                ) : (
+                  <button
+                    disabled={busyId !== null}
+                    onClick={() => install(app.id)}
+                    className="btn btn-primary"
+                  >
+                    {busyId === app.id ? 'Installing…' : 'Install'}
+                  </button>
+                )}
               </div>
             </div>
-            <div className="shrink-0">
-              {app.installed ? (
-                <span className={`badge ${app.running ? 'badge-ok' : 'badge-muted'}`}>
-                  {app.running ? 'Active' : 'Installed'}
-                </span>
-              ) : (
-                <button
-                  disabled={busyId !== null}
-                  onClick={() => install(app.id)}
-                  className="btn btn-primary"
-                >
-                  {busyId === app.id ? 'Installing…' : 'Install'}
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

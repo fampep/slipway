@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type InstalledApp } from '../api'
 import { AppIcon } from '../ui/AppIcon'
+import { useToast } from '../ui/Toast'
 
 type Filter = 'all' | 'running' | 'stopped' | 'external' | 'unhealthy'
 
@@ -14,6 +15,7 @@ function healthBadge(health?: string) {
 }
 
 export function Apps() {
+  const toast = useToast()
   const [apps, setApps] = useState<InstalledApp[]>([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
@@ -59,14 +61,17 @@ export function Apps() {
     setSelected(new Set(filtered.map((a) => a.id)))
   }
 
-  async function act(id: string, fn: (id: string) => Promise<unknown>) {
+  async function act(id: string, fn: (id: string) => Promise<unknown>, okMsg?: string) {
     setBusy(id)
     setError('')
     try {
       await fn(id)
       await refresh()
+      if (okMsg) toast.push(okMsg, 'ok')
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Action failed')
+      const msg = e instanceof Error ? e.message : 'Action failed'
+      setError(msg)
+      toast.push(msg, 'error')
     } finally {
       setBusy(null)
     }
@@ -81,12 +86,18 @@ export function Apps() {
       const res = await api.bulkApps(action, ids)
       const failed = res.results.filter((r) => !r.ok)
       if (failed.length) {
-        setError(failed.map((f) => `${f.id}: ${f.error}`).join('; '))
+        const msg = failed.map((f) => `${f.id}: ${f.error}`).join('; ')
+        setError(msg)
+        toast.push(msg, 'error')
+      } else {
+        toast.push(`${action} · ${ids.length} apps`, 'ok')
       }
       setSelected(new Set())
       await refresh()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Bulk action failed')
+      const msg = e instanceof Error ? e.message : 'Bulk action failed'
+      setError(msg)
+      toast.push(msg, 'error')
     } finally {
       setBulkBusy(false)
     }
@@ -208,15 +219,15 @@ export function Apps() {
                   </a>
                 )}
                 {app.running ? (
-                  <button disabled={busy === app.id} onClick={() => act(app.id, api.stop)} className="btn btn-ghost !py-1.5">
+                  <button disabled={busy === app.id} onClick={() => act(app.id, api.stop, 'Stopped')} className="btn btn-ghost !py-1.5">
                     Stop
                   </button>
                 ) : (
-                  <button disabled={busy === app.id} onClick={() => act(app.id, api.start)} className="btn btn-ghost !py-1.5">
+                  <button disabled={busy === app.id} onClick={() => act(app.id, api.start, 'Started')} className="btn btn-ghost !py-1.5">
                     Start
                   </button>
                 )}
-                <button disabled={busy === app.id} onClick={() => act(app.id, api.restart)} className="btn btn-ghost !py-1.5">
+                <button disabled={busy === app.id} onClick={() => act(app.id, api.restart, 'Restarted')} className="btn btn-ghost !py-1.5">
                   Restart
                 </button>
                 <button
@@ -225,7 +236,7 @@ export function Apps() {
                     const msg = app.external
                       ? `Unlink ${app.name} from Slipway? The existing container will keep running.`
                       : `Remove ${app.name} and delete its container?`
-                    if (confirm(msg)) act(app.id, api.remove)
+                    if (confirm(msg)) act(app.id, api.remove, app.external ? 'Unlinked' : 'Removed')
                   }}
                   className="btn btn-danger !py-1.5"
                 >

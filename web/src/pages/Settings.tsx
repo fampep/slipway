@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { api, type Health } from '../api'
+import { useToast } from '../ui/Toast'
 
 export function Settings() {
+  const toast = useToast()
   const [health, setHealth] = useState<Health | null>(null)
   const [publicURL, setPublicURL] = useState('')
   const [saved, setSaved] = useState(false)
@@ -26,11 +28,14 @@ export function Settings() {
     try {
       await api.saveSettings({ public_url: publicURL.trim() })
       setSaved(true)
+      toast.push('Settings saved', 'ok')
       const p = await api.proxySnippet()
       setNginx(p.nginx)
       setCaddy(p.caddy)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed')
+      const msg = e instanceof Error ? e.message : 'Save failed'
+      setError(msg)
+      toast.push(msg, 'error')
     } finally {
       setBusy(false)
     }

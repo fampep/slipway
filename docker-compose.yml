@@ -1,7 +1,7 @@
 services:
   slipway:
+    image: ${SLIPWAY_IMAGE:-ghcr.io/fampep/slipway:latest}
     build: .
-    image: slipway:latest
     container_name: slipway
     restart: unless-stopped
     ports:
@@ -24,6 +24,12 @@ services:
       HOST_ETC: /host/etc
     group_add:
       - "${DOCKER_GID:-991}"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 volumes:
   slipway-data:
