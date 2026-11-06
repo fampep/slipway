@@ -51,12 +51,11 @@ export function Catalog() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <section>
-        <p className="text-sm uppercase tracking-[0.18em] text-[var(--color-teal)]">Catalog</p>
-        <h1 className="mt-2 font-display text-4xl font-800 tracking-tight">Launch apps</h1>
-        <p className="mt-2 max-w-xl text-[var(--color-fog)]">
-          One-click installs backed by Docker images — curated for media stacks.
+        <h1 className="text-3xl font-700 tracking-tight">Catalog</h1>
+        <p className="mt-1.5 text-[var(--color-fog)]">
+          Install apps, or see what’s already active on this host.
         </p>
       </section>
 
@@ -64,18 +63,18 @@ export function Catalog() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search apps"
-          className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-panel)] px-3 py-2.5 outline-none focus:border-[var(--color-teal)] sm:max-w-sm"
+          placeholder="Search"
+          className="field sm:max-w-xs"
         />
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-1.5">
           {categories.map((c) => (
             <button
               key={c}
               onClick={() => setCategory(c)}
-              className={`rounded-md px-3 py-1.5 text-sm capitalize ${
+              className={`rounded-full px-3 py-1 text-sm capitalize transition ${
                 category === c
-                  ? 'bg-[var(--color-teal)] text-[var(--color-ink)]'
-                  : 'border border-[var(--color-line)] text-[var(--color-fog)] hover:text-[var(--color-snow)]'
+                  ? 'bg-[var(--accent-soft)] font-600 text-[var(--color-teal)]'
+                  : 'text-[var(--color-fog)] hover:text-[var(--color-snow)]'
               }`}
             >
               {c}
@@ -89,18 +88,18 @@ export function Catalog() {
       <AnimatePresence>
         {progress && (
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="rounded-xl border border-[var(--color-teal)]/40 bg-[var(--color-panel)] p-4"
+            className="surface p-4"
           >
             <div className="flex items-center justify-between text-sm">
               <span>{progress.message}</span>
-              <span className="text-[var(--color-teal)]">{progress.percent ?? 0}%</span>
+              <span className="font-600 text-[var(--color-teal)]">{progress.percent ?? 0}%</span>
             </div>
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-panel-2)]">
               <motion.div
-                className="h-full bg-[var(--color-teal)]"
+                className="h-full rounded-full bg-[var(--color-teal)]"
                 animate={{ width: `${progress.percent ?? 0}%` }}
               />
             </div>
@@ -108,41 +107,36 @@ export function Catalog() {
         )}
       </AnimatePresence>
 
-      <div className="divide-y divide-[var(--color-line)]/70 rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/40">
-        {filtered.map((app, i) => (
-          <motion.div
+      <div className="surface divide-y divide-[var(--color-line)] overflow-hidden">
+        {filtered.map((app) => (
+          <div
             key={app.id}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.03 }}
-            className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
           >
             <div>
-              <div className="flex items-center gap-3">
-                <h3 className="font-display text-lg font-700">{app.name}</h3>
-                <span className="rounded bg-[var(--color-panel-2)] px-2 py-0.5 text-xs capitalize text-[var(--color-fog)]">
-                  {app.category}
-                </span>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-700">{app.name}</h3>
+                <span className="badge badge-muted capitalize">{app.category}</span>
+                {app.installed && app.external && <span className="badge badge-accent">on host</span>}
               </div>
               <p className="mt-1 max-w-2xl text-sm text-[var(--color-fog)]">{app.description}</p>
-              <p className="mt-2 font-mono text-xs text-[var(--color-fog)]/80">{app.image}</p>
             </div>
             <div className="shrink-0">
               {app.installed ? (
-                <span className="text-sm text-[var(--color-teal)]">
-                  {app.running ? 'Installed · running' : 'Installed'}
+                <span className={`badge ${app.running ? 'badge-ok' : 'badge-muted'}`}>
+                  {app.running ? 'Active' : 'Installed'}
                 </span>
               ) : (
                 <button
                   disabled={busyId !== null}
                   onClick={() => install(app.id)}
-                  className="rounded-lg bg-[var(--color-teal)] px-4 py-2 text-sm font-semibold text-[var(--color-ink)] hover:brightness-110 disabled:opacity-50"
+                  className="btn btn-primary"
                 >
                   {busyId === app.id ? 'Installing…' : 'Install'}
                 </button>
               )}
             </div>
-          </motion.div>
+          </div>
         ))}
       </div>
     </div>

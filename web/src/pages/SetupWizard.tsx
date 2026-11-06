@@ -11,7 +11,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
   const [username, setUsername] = useState('master')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [publicURL, setPublicURL] = useState('https://198.50.123.153')
+  const [publicURL, setPublicURL] = useState(() => `${window.location.protocol}//${window.location.host}`)
   const [docker, setDocker] = useState<boolean | null>(null)
   const [catalogCount, setCatalogCount] = useState(0)
   const [error, setError] = useState('')
@@ -67,30 +67,18 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      <div className="pointer-events-none absolute inset-0 grid-fade" />
-      <div className="pointer-events-none absolute inset-0">
-        <motion.div
-          className="absolute -left-20 top-16 h-72 w-72 rounded-full bg-[rgba(47,224,197,0.16)] blur-3xl"
-          animate={{ x: [0, 30, 0], y: [0, 18, 0] }}
-          transition={{ duration: 11, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      </div>
-
-      <div className="relative mx-auto flex min-h-screen max-w-3xl flex-col justify-center px-5 py-12">
-        <div className="mb-8">
-          <p className="text-sm uppercase tracking-[0.22em] text-[var(--color-teal)]">First-time setup</p>
-          <h1 className="mt-2 font-display text-4xl font-800 tracking-tight sm:text-5xl">
+    <div className="relative min-h-screen">
+      <div className="mx-auto flex min-h-screen max-w-xl flex-col justify-center px-5 py-12">
+        <div className="mb-7">
+          <h1 className="text-4xl font-700 tracking-tight">
             Slip<span className="text-[var(--color-teal)]">way</span>
           </h1>
-          <p className="mt-2 text-[var(--color-fog)]">
-            A short guided setup — no terminal needed.
-          </p>
-          <div className="mt-6 flex gap-2">
+          <p className="mt-1.5 text-[var(--color-fog)]">Quick first-time setup.</p>
+          <div className="mt-5 flex gap-1.5">
             {steps.map((s, i) => (
               <div
                 key={s}
-                className={`h-1.5 flex-1 rounded-full ${
+                className={`h-1 flex-1 rounded-full ${
                   i <= idx ? 'bg-[var(--color-teal)]' : 'bg-[var(--color-panel-2)]'
                 }`}
               />
@@ -101,28 +89,19 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
         <AnimatePresence mode="wait">
           <motion.div
             key={step}
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.28 }}
-            className="rounded-2xl border border-[var(--color-line)] bg-[rgba(13,26,36,0.88)] p-7 backdrop-blur"
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.22 }}
+            className="surface p-6"
           >
             {step === 'welcome' && (
-              <div className="space-y-5">
-                <h2 className="font-display text-2xl font-700">Welcome</h2>
-                <p className="text-[var(--color-fog)]">
-                  Slipway installs and controls Docker apps on this server — Silo, Emby, Plex,
-                  Sonarr, and more — from one clean panel.
+              <div className="space-y-4">
+                <h2 className="text-xl font-700">Welcome</h2>
+                <p className="text-sm text-[var(--color-fog)]">
+                  Install and control Docker apps on this server from one panel.
                 </p>
-                <ul className="space-y-2 text-sm text-[var(--color-fog)]">
-                  <li>• Create your master account</li>
-                  <li>• Set how you reach the box (IP / URL)</li>
-                  <li>• Confirm Docker is ready</li>
-                </ul>
-                <button
-                  onClick={() => setStep('account')}
-                  className="mt-2 w-full rounded-lg bg-[var(--color-teal)] px-4 py-3 font-semibold text-[var(--color-ink)]"
-                >
+                <button onClick={() => setStep('account')} className="btn btn-primary mt-2 w-full !py-3">
                   Start setup
                 </button>
               </div>
@@ -130,14 +109,11 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
 
             {step === 'account' && (
               <div className="space-y-4">
-                <h2 className="font-display text-2xl font-700">Master account</h2>
-                <p className="text-sm text-[var(--color-fog)]">
-                  This is the admin login for the panel.
-                </p>
+                <h2 className="text-xl font-700">Master account</h2>
                 <label className="block text-sm text-[var(--color-fog)]">
                   Username
                   <input
-                    className="mt-1.5 w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-ink)] px-3 py-2.5 outline-none focus:border-[var(--color-teal)]"
+                    className="field mt-1.5"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="username"
@@ -147,7 +123,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
                   Password
                   <input
                     type="password"
-                    className="mt-1.5 w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-ink)] px-3 py-2.5 outline-none focus:border-[var(--color-teal)]"
+                    className="field mt-1.5"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
@@ -158,24 +134,18 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
                   Confirm password
                   <input
                     type="password"
-                    className="mt-1.5 w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-ink)] px-3 py-2.5 outline-none focus:border-[var(--color-teal)]"
+                    className="field mt-1.5"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
                     autoComplete="new-password"
                   />
                 </label>
                 {error && <p className="text-sm text-[var(--color-rose)]">{error}</p>}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => setStep('welcome')}
-                    className="rounded-lg border border-[var(--color-line)] px-4 py-2.5 text-sm"
-                  >
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setStep('welcome')} className="btn btn-ghost">
                     Back
                   </button>
-                  <button
-                    onClick={() => void finishAccount()}
-                    className="flex-1 rounded-lg bg-[var(--color-teal)] px-4 py-2.5 font-semibold text-[var(--color-ink)]"
-                  >
+                  <button onClick={() => void finishAccount()} className="btn btn-primary flex-1">
                     Continue
                   </button>
                 </div>
@@ -184,83 +154,61 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
 
             {step === 'host' && (
               <div className="space-y-4">
-                <h2 className="font-display text-2xl font-700">How you connect</h2>
+                <h2 className="text-xl font-700">Public URL</h2>
                 <p className="text-sm text-[var(--color-fog)]">
-                  Used for Open links to apps like Silo, Emby, and Plex. You can change this later
-                  in Settings.
+                  Used for Open links. You can change this later in Settings.
                 </p>
                 <label className="block text-sm text-[var(--color-fog)]">
-                  Public URL or IP
+                  URL or IP
                   <input
-                    className="mt-1.5 w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-ink)] px-3 py-2.5 outline-none focus:border-[var(--color-teal)]"
+                    className="field mt-1.5"
                     value={publicURL}
                     onChange={(e) => setPublicURL(e.target.value)}
-                    placeholder="https://198.50.123.153"
+                    placeholder="http://YOUR_SERVER_IP:8080"
                   />
                 </label>
-                <p className="text-xs text-[var(--color-fog)]">
-                  Example: <code className="text-[var(--color-snow)]">https://198.50.123.153</code>
-                </p>
                 {error && <p className="text-sm text-[var(--color-rose)]">{error}</p>}
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={() => setStep('account')}
-                    className="rounded-lg border border-[var(--color-line)] px-4 py-2.5 text-sm"
-                  >
+                <div className="flex gap-2 pt-1">
+                  <button onClick={() => setStep('account')} className="btn btn-ghost">
                     Back
                   </button>
                   <button
                     disabled={busy}
                     onClick={() => void createPanel()}
-                    className="flex-1 rounded-lg bg-[var(--color-teal)] px-4 py-2.5 font-semibold text-[var(--color-ink)] disabled:opacity-60"
+                    className="btn btn-primary flex-1"
                   >
-                    {busy ? 'Creating panel…' : 'Create panel'}
+                    {busy ? 'Creating…' : 'Create panel'}
                   </button>
                 </div>
               </div>
             )}
 
             {step === 'checks' && (
-              <div className="space-y-5">
-                <h2 className="font-display text-2xl font-700">System check</h2>
-                <div className="space-y-3 text-sm">
-                  <Row ok label="Master account" detail={`Signed in as ${username}`} />
+              <div className="space-y-4">
+                <h2 className="text-xl font-700">Ready check</h2>
+                <div className="space-y-2 text-sm">
+                  <Row ok label="Account" detail={username} />
                   <Row
                     ok={docker === true}
-                    label="Docker Engine"
-                    detail={
-                      docker === true
-                        ? 'Connected — apps can be installed from the catalog'
-                        : 'Not reachable yet — Slipway needs the Docker socket'
-                    }
+                    label="Docker"
+                    detail={docker === true ? 'Connected' : 'Not reachable'}
                   />
-                  <Row
-                    ok={catalogCount > 0}
-                    label="App catalog"
-                    detail={`${catalogCount} apps ready (includes Silo, Emby, Plex)`}
-                  />
-                  <Row ok label="Public base" detail={publicURL || 'localhost'} />
+                  <Row ok={catalogCount > 0} label="Catalog" detail={`${catalogCount} apps`} />
+                  <Row ok label="Public URL" detail={publicURL || 'localhost'} />
                 </div>
-                <button
-                  onClick={() => setStep('done')}
-                  className="w-full rounded-lg bg-[var(--color-teal)] px-4 py-3 font-semibold text-[var(--color-ink)]"
-                >
+                <button onClick={() => setStep('done')} className="btn btn-primary w-full !py-3">
                   Continue
                 </button>
               </div>
             )}
 
             {step === 'done' && (
-              <div className="space-y-5">
-                <h2 className="font-display text-2xl font-700">You&apos;re set</h2>
-                <p className="text-[var(--color-fog)]">
-                  Open the catalog to install Silo or other apps, or jump to the overview for live
-                  host metrics. Everything runs from this UI.
+              <div className="space-y-4">
+                <h2 className="text-xl font-700">You&apos;re set</h2>
+                <p className="text-sm text-[var(--color-fog)]">
+                  Use the catalog to install apps, or open Overview for live metrics.
                 </p>
-                <button
-                  onClick={onDone}
-                  className="w-full rounded-lg bg-[var(--color-teal)] px-4 py-3 font-semibold text-[var(--color-ink)]"
-                >
+                <button onClick={onDone} className="btn btn-primary w-full !py-3">
                   Enter Slipway
                 </button>
               </div>
@@ -274,14 +222,14 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
 
 function Row({ ok, label, detail }: { ok: boolean; label: string; detail: string }) {
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-[var(--color-line)]/80 px-4 py-3">
+    <div className="flex items-start gap-3 rounded-xl bg-[var(--bg)] px-3.5 py-3">
       <span
-        className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${
-          ok ? 'bg-[var(--color-teal)] shadow-[0_0_10px_var(--color-teal)]' : 'bg-[var(--color-rose)]'
+        className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+          ok ? 'bg-[var(--ok)]' : 'bg-[var(--color-rose)]'
         }`}
       />
       <div>
-        <div className="font-medium text-[var(--color-snow)]">{label}</div>
+        <div className="font-600">{label}</div>
         <div className="text-[var(--color-fog)]">{detail}</div>
       </div>
     </div>

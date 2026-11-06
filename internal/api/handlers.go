@@ -25,6 +25,7 @@ type appView struct {
 	Installed     bool           `json:"installed"`
 	Status        string         `json:"status"`
 	Running       bool           `json:"running"`
+	External      bool           `json:"external"`
 	ContainerID   string         `json:"container_id,omitempty"`
 	ContainerName string         `json:"container_name,omitempty"`
 	URL           string         `json:"url,omitempty"`
@@ -56,7 +57,15 @@ func (s *Server) handleSetupStatus(w http.ResponseWriter, r *http.Request) {
 	// Only expose suggested host / catalog size during first-run setup.
 	if needs {
 		out["catalog_count"] = len(s.deps.Catalog.List())
-		out["suggested_url"] = "https://198.50.123.153"
+		scheme := "http"
+		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
+			scheme = "https"
+		}
+		host := r.Host
+		if host == "" {
+			host = "localhost:8080"
+		}
+		out["suggested_url"] = scheme + "://" + host
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -167,19 +176,13 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCatalog(w http.ResponseWriter, r *http.Request) {
+	_ = s.adoptExisting(r.Context())
 	installed, _ := s.deps.Store.ListInstalled()
 	byID := map[string]store.InstalledApp{}
 	for _, a := range installed {
 		byID[a.CatalogID] = a
 	}
-	managed := map[string]docker.ContainerInfo{}
-	if s.deps.Docker != nil && s.deps.Docker.Available() {
-		if list, err := s.deps.Docker.ListManaged(r.Context()); err == nil {
-			for _, c := range list {
-				managed[c.AppID] = c
-			}
-		}
-	}
+	live := s.liveByAppID(r.Context())
 	views := make([]appView, 0)
 	for _, app := range s.deps.Catalog.List() {
 		v := s.catalogToView(app)
@@ -188,11 +191,13 @@ func (s *Server) handleCatalog(w http.ResponseWriter, r *http.Request) {
 			v.Status = inst.Status
 			v.ContainerID = inst.ContainerID
 			v.ContainerName = inst.ContainerName
+			v.External = isExternalName(inst.ContainerName)
 			t := inst.InstalledAt
 			v.InstalledAt = &t
-			if c, ok := managed[app.ID]; ok {
+			if c, ok := live[app.ID]; ok {
 				v.Status = c.State
 				v.Running = c.Running
+				v.External = !docker.IsSlipwayManaged(c)
 			}
 		}
 		views = append(views, v)
@@ -331,7 +336,8 @@ func (s *Server) handleRemove(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "app not installed")
 		return
 	}
-	if s.deps.Docker != nil && s.deps.Docker.Available() {
+	// Only destroy containers Slipway itself created. External stacks are unlinked only.
+	if s.deps.Docker != nil && s.deps.Docker.Available() && !isExternalName(inst.ContainerName) {
 		_ = s.deps.Docker.Remove(r.Context(), inst.ContainerName)
 	}
 	if err := s.deps.Store.DeleteInstalled(id); err != nil {
@@ -346,18 +352,12 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) syncInstalled(ctx context.Context) ([]appView, error) {
+	_ = s.adoptExisting(ctx)
 	installed, err := s.deps.Store.ListInstalled()
 	if err != nil {
 		return nil, err
 	}
-	managed := map[string]docker.ContainerInfo{}
-	if s.deps.Docker != nil && s.deps.Docker.Available() {
-		if list, err := s.deps.Docker.ListManaged(ctx); err == nil {
-			for _, c := range list {
-				managed[c.AppID] = c
-			}
-		}
-	}
+	live := s.liveByAppID(ctx)
 	out := make([]appView, 0, len(installed))
 	for _, inst := range installed {
 		app, ok := s.deps.Catalog.Get(inst.CatalogID)
@@ -365,14 +365,92 @@ func (s *Server) syncInstalled(ctx context.Context) ([]appView, error) {
 			app = catalog.App{ID: inst.CatalogID, Name: inst.CatalogID}
 		}
 		v := s.catalogToViewInstalled(app, inst)
-		if c, ok := managed[inst.CatalogID]; ok {
+		if c, ok := live[inst.CatalogID]; ok {
 			v.Status = c.State
 			v.Running = c.Running
+			v.External = !docker.IsSlipwayManaged(c)
+			v.ContainerID = c.ID
+			v.ContainerName = c.Name
 			_ = s.deps.Store.UpdateInstalledStatus(inst.ID, c.State)
 		}
 		out = append(out, v)
 	}
 	return out, nil
+}
+
+func (s *Server) liveByAppID(ctx context.Context) map[string]docker.ContainerInfo {
+	out := map[string]docker.ContainerInfo{}
+	if s.deps.Docker == nil || !s.deps.Docker.Available() {
+		return out
+	}
+	list, err := s.deps.Docker.ListAll(ctx)
+	if err != nil {
+		if managed, err2 := s.deps.Docker.ListManaged(ctx); err2 == nil {
+			for _, c := range managed {
+				if c.AppID != "" {
+					out[c.AppID] = c
+				}
+			}
+		}
+		return out
+	}
+	claimed := map[string]bool{}
+	for _, app := range s.deps.Catalog.List() {
+		for _, c := range list {
+			if claimed[c.ID] {
+				continue
+			}
+			if docker.MatchCatalogApp(app, c) {
+				info := c
+				if info.AppID == "" {
+					info.AppID = app.ID
+				}
+				out[app.ID] = info
+				claimed[c.ID] = true
+				break
+			}
+		}
+	}
+	return out
+}
+
+func (s *Server) adoptExisting(ctx context.Context) error {
+	if s.deps.Docker == nil || !s.deps.Docker.Available() {
+		return nil
+	}
+	live := s.liveByAppID(ctx)
+	for appID, c := range live {
+		existing, err := s.deps.Store.GetInstalled(appID)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			// Keep DB pointer fresh when the container name/id changes.
+			if existing.ContainerName != c.Name || existing.ContainerID != c.ID {
+				existing.ContainerName = c.Name
+				existing.ContainerID = c.ID
+				existing.Status = c.State
+				_ = s.deps.Store.UpsertInstalled(*existing)
+			}
+			continue
+		}
+		inst := store.InstalledApp{
+			ID:            appID,
+			CatalogID:     appID,
+			ContainerID:   c.ID,
+			ContainerName: c.Name,
+			Status:        c.State,
+			InstalledAt:   time.Now().UTC(),
+		}
+		if err := s.deps.Store.UpsertInstalled(inst); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func isExternalName(name string) bool {
+	return name != "" && !strings.HasPrefix(name, "slipway-")
 }
 
 func (s *Server) catalogToView(app catalog.App) appView {
@@ -394,6 +472,7 @@ func (s *Server) catalogToViewInstalled(app catalog.App, inst store.InstalledApp
 	v.Installed = true
 	v.Status = inst.Status
 	v.Running = inst.Status == "running"
+	v.External = isExternalName(inst.ContainerName)
 	v.ContainerID = inst.ContainerID
 	v.ContainerName = inst.ContainerName
 	t := inst.InstalledAt

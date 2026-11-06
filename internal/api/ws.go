@@ -15,24 +15,16 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		origin := r.Header.Get("Origin")
 		if origin == "" {
-			return true // same-origin navigations / non-browser
+			return true
 		}
-		allowed := []string{
-			"http://localhost:5173",
-			"http://127.0.0.1:5173",
-			"http://localhost:8080",
-			"http://127.0.0.1:8080",
-			"https://198.50.123.153",
-			"http://198.50.123.153",
-		}
-		for _, a := range allowed {
-			if strings.EqualFold(origin, a) {
-				return true
-			}
-		}
-		// Allow same host as the request (panel served from this host)
 		host := r.Host
 		if host != "" && (strings.EqualFold(origin, "https://"+host) || strings.EqualFold(origin, "http://"+host)) {
+			return true
+		}
+		// Local Vite / common loopback during development
+		switch strings.ToLower(origin) {
+		case "http://localhost:5173", "http://127.0.0.1:5173",
+			"http://localhost:8080", "http://127.0.0.1:8080":
 			return true
 		}
 		return false

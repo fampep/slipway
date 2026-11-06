@@ -21,39 +21,44 @@ export function Shell({
 }) {
   return (
     <div className="min-h-screen">
-      <div className="pointer-events-none fixed inset-0 grid-fade" />
-      <header className="relative z-10 border-b border-[var(--color-line)]/70 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-6 py-4">
-          <div className="flex items-center gap-8">
-            <NavLink
-              to="/"
-              className="font-display text-xl font-700 tracking-tight text-[var(--color-snow)]"
-            >
+      <header className="sticky top-0 z-20 border-b border-[var(--color-line)] bg-[rgba(11,16,22,0.82)] backdrop-blur-md">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-3.5">
+          <div className="flex items-center gap-7">
+            <NavLink to="/" className="text-lg font-700 tracking-tight">
               Slip<span className="text-[var(--color-teal)]">way</span>
             </NavLink>
-            <nav className="hidden items-center gap-1 sm:flex">
+            <nav className="hidden items-center gap-5 sm:flex">
               {links.map((l) => (
                 <NavLink
                   key={l.to}
                   to={l.to}
                   end={l.end}
                   className={({ isActive }) =>
-                    `rounded-md px-3 py-1.5 text-sm transition ${
+                    `text-sm transition ${
                       isActive
-                        ? "bg-[var(--color-panel-2)] text-[var(--color-teal)]"
+                        ? "font-600 text-[var(--color-snow)]"
                         : "text-[var(--color-fog)] hover:text-[var(--color-snow)]"
                     }`
                   }
                 >
-                  {l.label}
+                  {({ isActive }) => (
+                    <span className="relative pb-0.5">
+                      {l.label}
+                      {isActive && (
+                        <span className="absolute inset-x-0 -bottom-2 h-0.5 rounded-full bg-[var(--color-teal)]" />
+                      )}
+                    </span>
+                  )}
                 </NavLink>
               ))}
             </nav>
           </div>
           <div className="flex items-center gap-3 text-sm text-[var(--color-fog)]">
-            <span className="hidden sm:inline">{user.username}</span>
+            <span className="hidden rounded-full bg-[var(--color-panel-2)] px-2.5 py-1 sm:inline">
+              {user.username}
+            </span>
             <button
-              className="rounded-md border border-[var(--color-line)] px-3 py-1.5 hover:border-[var(--color-teal)] hover:text-[var(--color-teal)]"
+              className="btn btn-ghost !px-3 !py-1.5 !text-sm !font-500"
               onClick={async () => {
                 await api.logout();
                 onLogout();
@@ -65,10 +70,10 @@ export function Shell({
         </div>
       </header>
       <motion.main
-        className="relative z-10 mx-auto max-w-6xl px-6 py-8"
-        initial={{ opacity: 0, y: 8 }}
+        className="mx-auto max-w-5xl px-5 py-8"
+        initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
+        transition={{ duration: 0.28 }}
       >
         {children ?? <Outlet />}
       </motion.main>

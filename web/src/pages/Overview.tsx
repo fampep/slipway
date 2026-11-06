@@ -21,23 +21,22 @@ function Metric({
   hint?: string
 }) {
   return (
-    <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 px-4 py-4">
-      <div className="text-xs uppercase tracking-wider text-[var(--color-fog)]">{label}</div>
-      <div className="mt-2 font-display text-2xl font-700 text-[var(--color-snow)]">{value}</div>
+    <div className="surface px-4 py-4">
+      <div className="text-sm text-[var(--color-fog)]">{label}</div>
+      <div className="mt-1.5 text-2xl font-700 tracking-tight">{value}</div>
       {hint && <div className="mt-1 text-xs text-[var(--color-fog)]">{hint}</div>}
     </div>
   )
 }
 
-function Bar({ pct, tone = 'teal' }: { pct: number; tone?: 'teal' | 'amber' }) {
-  const color = tone === 'amber' ? 'bg-[var(--color-amber)]' : 'bg-[var(--color-teal)]'
+function Bar({ pct, warn = false }: { pct: number; warn?: boolean }) {
   return (
     <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-panel-2)]">
       <motion.div
-        className={`h-full ${color}`}
+        className={`h-full rounded-full ${warn ? 'bg-[var(--color-amber)]' : 'bg-[var(--color-teal)]'}`}
         initial={{ width: 0 }}
         animate={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
-        transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+        transition={{ type: 'spring', stiffness: 120, damping: 22 }}
       />
     </div>
   )
@@ -75,24 +74,27 @@ export function Overview() {
   const running = useMemo(() => apps.filter((a) => a.running).length, [apps])
 
   return (
-    <div className="space-y-10">
-      <section>
-        <p className="text-sm uppercase tracking-[0.18em] text-[var(--color-teal)]">Overview</p>
-        <h1 className="mt-2 font-display text-4xl font-800 tracking-tight">Your stack at a glance</h1>
-        <p className="mt-2 max-w-xl text-[var(--color-fog)]">
-          Live host metrics and service health from the dedi Docker engine.
-        </p>
+    <div className="space-y-8">
+      <section className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-700 tracking-tight">Overview</h1>
+          <p className="mt-1.5 text-[var(--color-fog)]">Live metrics and services on this host.</p>
+        </div>
+        <div className="flex gap-2">
+          <Link to="/apps" className="btn btn-ghost">
+            Apps
+          </Link>
+          <Link to="/catalog" className="btn btn-primary">
+            Catalog
+          </Link>
+        </div>
       </section>
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Metric
-          label="CPU"
-          value={metrics ? `${metrics.cpu_percent.toFixed(1)}%` : '—'}
-          hint={metrics?.hostname}
-        />
-        <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 px-4 py-4">
-          <div className="text-xs uppercase tracking-wider text-[var(--color-fog)]">Memory</div>
-          <div className="mt-2 font-display text-2xl font-700">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Metric label="CPU" value={metrics ? `${metrics.cpu_percent.toFixed(1)}%` : '—'} hint={metrics?.hostname} />
+        <div className="surface px-4 py-4">
+          <div className="text-sm text-[var(--color-fog)]">Memory</div>
+          <div className="mt-1.5 text-2xl font-700 tracking-tight">
             {metrics ? `${metrics.mem_percent.toFixed(0)}%` : '—'}
           </div>
           {metrics && (
@@ -104,9 +106,9 @@ export function Overview() {
             </>
           )}
         </div>
-        <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-panel)]/60 px-4 py-4">
-          <div className="text-xs uppercase tracking-wider text-[var(--color-fog)]">Disk</div>
-          <div className="mt-2 font-display text-2xl font-700">
+        <div className="surface px-4 py-4">
+          <div className="text-sm text-[var(--color-fog)]">Disk</div>
+          <div className="mt-1.5 text-2xl font-700 tracking-tight">
             {metrics ? `${metrics.disk_percent.toFixed(0)}%` : '—'}
           </div>
           {metrics && (
@@ -114,54 +116,46 @@ export function Overview() {
               <div className="mt-1 text-xs text-[var(--color-fog)]">
                 {formatBytes(metrics.disk_used)} / {formatBytes(metrics.disk_total)}
               </div>
-              <Bar pct={metrics.disk_percent} tone={metrics.disk_percent > 85 ? 'amber' : 'teal'} />
+              <Bar pct={metrics.disk_percent} warn={metrics.disk_percent > 85} />
             </>
           )}
         </div>
         <Metric
           label="Network"
-          value={
-            metrics
-              ? `↓ ${formatBytes(metrics.net_recv_ps)}/s`
-              : '—'
-          }
+          value={metrics ? `↓ ${formatBytes(metrics.net_recv_ps)}/s` : '—'}
           hint={metrics ? `↑ ${formatBytes(metrics.net_sent_ps)}/s` : undefined}
         />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-6">
+      <section className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+        <div className="surface p-5">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="font-display text-xl font-700">Services</h2>
-            <Link to="/catalog" className="text-sm text-[var(--color-teal)] hover:underline">
-              Install more
-            </Link>
+            <h2 className="text-lg font-700">Services</h2>
+            <span className="text-sm text-[var(--color-fog)]">
+              {running}/{apps.length} running
+            </span>
           </div>
-          <div className="mt-5 space-y-3">
+          <div className="mt-4">
             {apps.length === 0 && (
-              <p className="text-sm text-[var(--color-fog)]">
-                Nothing installed yet. Open the catalog to launch your first app.
+              <p className="py-6 text-sm text-[var(--color-fog)]">
+                Nothing detected yet. Slipway will pick up matching Docker apps already on this host.
               </p>
             )}
             {apps.map((app) => (
               <div
                 key={app.id}
-                className="flex items-center justify-between gap-3 border-b border-[var(--color-line)]/60 py-3 last:border-0"
+                className="flex items-center justify-between gap-3 border-t border-[var(--color-line)] py-3 first:border-0 first:pt-0"
               >
-                <div>
-                  <div className="font-medium">{app.name}</div>
-                  <div className="text-xs text-[var(--color-fog)]">{app.status}</div>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="font-500">{app.name}</div>
+                    {app.external && <span className="badge badge-accent">on host</span>}
+                  </div>
+                  <div className="truncate text-xs text-[var(--color-fog)]">
+                    {app.container_name || app.status}
+                  </div>
                 </div>
-                <span
-                  className={`inline-flex items-center gap-2 text-xs ${
-                    app.running ? 'text-[var(--color-teal)]' : 'text-[var(--color-fog)]'
-                  }`}
-                >
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      app.running ? 'bg-[var(--color-teal)] shadow-[0_0_10px_var(--color-teal)]' : 'bg-[var(--color-fog)]'
-                    }`}
-                  />
+                <span className={`badge ${app.running ? 'badge-ok' : 'badge-muted'}`}>
                   {app.running ? 'running' : 'stopped'}
                 </span>
               </div>
@@ -169,12 +163,12 @@ export function Overview() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-6">
-          <h2 className="font-display text-xl font-700">Host</h2>
-          <dl className="mt-5 space-y-3 text-sm">
+        <div className="surface p-5">
+          <h2 className="text-lg font-700">Host</h2>
+          <dl className="mt-4 space-y-3 text-sm">
             <div className="flex justify-between gap-4">
               <dt className="text-[var(--color-fog)]">Docker</dt>
-              <dd className={docker ? 'text-[var(--color-teal)]' : 'text-[var(--color-rose)]'}>
+              <dd className={docker ? 'text-[var(--ok)]' : 'text-[var(--color-rose)]'}>
                 {docker ? 'connected' : 'offline'}
               </dd>
             </div>
@@ -184,19 +178,10 @@ export function Overview() {
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-[var(--color-fog)]">Platform</dt>
-              <dd>{metrics?.platform || '—'}</dd>
-            </div>
-            <div className="flex justify-between gap-4">
-              <dt className="text-[var(--color-fog)]">Apps running</dt>
-              <dd>
-                {running}/{apps.length}
-              </dd>
+              <dd className="truncate">{metrics?.platform || '—'}</dd>
             </div>
           </dl>
-          <Link
-            to="/apps"
-            className="mt-6 inline-flex rounded-lg border border-[var(--color-line)] px-4 py-2 text-sm hover:border-[var(--color-teal)] hover:text-[var(--color-teal)]"
-          >
+          <Link to="/apps" className="btn btn-ghost mt-6 w-full">
             Manage apps
           </Link>
         </div>

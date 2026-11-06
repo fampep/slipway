@@ -5,7 +5,7 @@ services:
     container_name: slipway
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080"
+      - "${SLIPWAY_PORT:-8080}:8080"
     volumes:
       - slipway-data:/data
       - /var/run/docker.sock:/var/run/docker.sock
@@ -15,7 +15,7 @@ services:
       SLIPWAY_CATALOG: /app/catalog
       SLIPWAY_WEB: /app/web/dist
     group_add:
-      - "991"
+      - "${DOCKER_GID:-991}"
 
 volumes:
   slipway-data:

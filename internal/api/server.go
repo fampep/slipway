@@ -30,18 +30,14 @@ type Deps struct {
 }
 
 type Server struct {
-	deps   Deps
-	hub    *Hub
-	loginRL *rateLimiter
-	setupRL *rateLimiter
+	deps Deps
+	hub  *Hub
 }
 
 func New(deps Deps) *Server {
 	s := &Server{
-		deps:    deps,
-		hub:     NewHub(),
-		loginRL: newRateLimiter(8, time.Minute),
-		setupRL: newRateLimiter(3, 10*time.Minute),
+		deps: deps,
+		hub:  NewHub(),
 	}
 	go s.hub.Run()
 	go s.broadcastLoop()
@@ -63,8 +59,13 @@ func (s *Server) Router() http.Handler {
 			"http://127.0.0.1:5173",
 			"http://localhost:8080",
 			"http://127.0.0.1:8080",
-			"https://198.50.123.153",
-			"http://198.50.123.153",
+		},
+		AllowOriginFunc: func(r *http.Request, origin string) bool {
+			if origin == "" {
+				return true
+			}
+			host := r.Host
+			return host != "" && (strings.EqualFold(origin, "http://"+host) || strings.EqualFold(origin, "https://"+host))
 		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Content-Type"},
@@ -75,11 +76,10 @@ func (s *Server) Router() http.Handler {
 	r.Route("/api", func(r chi.Router) {
 		r.Get("/health", s.handleHealth)
 
-		// Public only while unconfigured / for login
-		r.With(s.limitSetup).Get("/setup", s.handleSetupStatus)
-		r.With(s.limitSetup).Get("/setup/status", s.handleSetupStatus)
-		r.With(s.limitSetup).Post("/setup", s.handleSetup)
-		r.With(s.limitLogin).Post("/login", s.handleLogin)
+		r.Get("/setup", s.handleSetupStatus)
+		r.Get("/setup/status", s.handleSetupStatus)
+		r.Post("/setup", s.handleSetup)
+		r.Post("/login", s.handleLogin)
 		r.Post("/logout", s.handleLogout)
 
 		r.Group(func(r chi.Router) {
@@ -101,26 +101,6 @@ func (s *Server) Router() http.Handler {
 
 	s.mountWeb(r)
 	return r
-}
-
-func (s *Server) limitLogin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !s.loginRL.allow(clientIP(r)) {
-			writeError(w, http.StatusTooManyRequests, "too many login attempts — try again later")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (s *Server) limitSetup(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !s.setupRL.allow(clientIP(r) + ":setup") {
-			writeError(w, http.StatusTooManyRequests, "too many setup attempts — try again later")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (s *Server) mountWeb(r chi.Router) {

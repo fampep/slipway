@@ -18,6 +18,7 @@ export type CatalogApp = {
   installed: boolean
   status?: string
   running: boolean
+  external?: boolean
   url?: string
 }
 
@@ -32,6 +33,7 @@ export type InstalledApp = {
   container_name?: string
   status: string
   running: boolean
+  external?: boolean
   url?: string
   web_port?: string
   installed_at?: string

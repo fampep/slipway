@@ -1,29 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #071018;
-  --bg-elevated: #0d1a24;
-  --bg-soft: #122433;
-  --line: rgba(125, 211, 252, 0.12);
-  --text: #e8f1f7;
-  --muted: #8aa0b2;
+  --bg: #0b1016;
+  --bg-elevated: #121925;
+  --bg-soft: #182131;
+  --line: rgba(148, 163, 184, 0.12);
+  --text: #e8eef7;
+  --muted: #8b9bb0;
   --accent: #2dd4bf;
-  --accent-2: #38bdf8;
+  --accent-soft: rgba(45, 212, 191, 0.12);
   --danger: #fb7185;
   --ok: #34d399;
   --warn: #fbbf24;
-  --font-display: "Syne", sans-serif;
-  --font-body: "DM Sans", sans-serif;
+  --font: "Outfit", sans-serif;
 
-  --color-ink: #042f2e;
-  --color-snow: #e8f1f7;
-  --color-fog: #8aa0b2;
+  --color-ink: #041016;
+  --color-snow: #e8eef7;
+  --color-fog: #8b9bb0;
   --color-teal: #2dd4bf;
   --color-amber: #fbbf24;
   --color-rose: #fb7185;
-  --color-line: rgba(125, 211, 252, 0.12);
-  --color-panel: #0d1a24;
-  --color-panel-2: #122433;
+  --color-line: rgba(148, 163, 184, 0.12);
+  --color-panel: #121925;
+  --color-panel-2: #182131;
 }
 
 * {
@@ -38,13 +37,14 @@ body,
 
 body {
   margin: 0;
-  font-family: var(--font-body);
-  color: var(--color-snow);
+  font-family: var(--font);
+  color: var(--text);
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(45, 212, 191, 0.16), transparent 55%),
-    radial-gradient(900px 500px at 90% 0%, rgba(56, 189, 248, 0.12), transparent 50%),
-    linear-gradient(180deg, #061018 0%, #0a1520 45%, #071018 100%);
+    radial-gradient(1000px 520px at 12% -12%, rgba(45, 212, 191, 0.1), transparent 55%),
+    radial-gradient(800px 420px at 100% 0%, rgba(56, 189, 248, 0.06), transparent 50%),
+    linear-gradient(180deg, #0d131c 0%, #0b1016 55%, #090e14 100%);
   background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
@@ -52,15 +52,21 @@ h2,
 h3,
 .brand,
 .font-display {
-  font-family: var(--font-display);
+  font-family: var(--font);
   letter-spacing: -0.03em;
 }
 
+.font-500 {
+  font-weight: 500;
+}
+.font-600 {
+  font-weight: 600;
+}
 .font-700 {
   font-weight: 700;
 }
 .font-800 {
-  font-weight: 800;
+  font-weight: 700;
 }
 
 a {
@@ -74,20 +80,111 @@ code {
   font: inherit;
 }
 
-.grid-fade {
-  background-image:
-    linear-gradient(rgba(125, 211, 252, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(125, 211, 252, 0.04) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: radial-gradient(ellipse at center, black 20%, transparent 75%);
+button {
+  cursor: pointer;
+}
+
+input {
+  color: var(--text);
+}
+
+.surface {
+  background: rgba(18, 25, 37, 0.88);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #042f2e;
+}
+
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  border-color: rgba(45, 212, 191, 0.4);
+  color: var(--accent);
+}
+
+.btn-danger {
+  background: transparent;
+  border: 1px solid rgba(251, 113, 133, 0.3);
+  color: var(--danger);
+}
+
+.field {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(8, 12, 18, 0.7);
+  padding: 0.7rem 0.85rem;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.field:focus {
+  border-color: rgba(45, 212, 191, 0.45);
+  background: rgba(8, 12, 18, 0.95);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.badge-ok {
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--ok);
+}
+
+.badge-muted {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--muted);
+}
+
+.badge-accent {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(125, 211, 252, 0.25);
+  background: rgba(148, 163, 184, 0.28);
   border-radius: 999px;
 }

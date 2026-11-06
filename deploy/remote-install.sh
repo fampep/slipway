@@ -1,27 +1,31 @@
 #!/usr/bin/env bash
-# Run ON the Linux dedi (no root required if user is in the docker group).
+# Run from the Slipway project directory on Linux.
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-$HOME/slipway}"
-cd "$APP_DIR"
+cd "$(dirname "$0")/.."
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Docker is required."
   exit 1
 fi
-
 if ! docker compose version >/dev/null 2>&1; then
   echo "Docker Compose plugin is required."
   exit 1
 fi
 
-echo "==> Building Slipway image (Linux amd64)"
+if getent group docker >/dev/null 2>&1; then
+  export DOCKER_GID="$(getent group docker | cut -d: -f3)"
+fi
+export DOCKER_GID="${DOCKER_GID:-991}"
+export SLIPWAY_PORT="${SLIPWAY_PORT:-8080}"
+
+echo "==> Building Slipway"
 docker compose build
 
-echo "==> Starting Slipway (bound to 127.0.0.1:8080)"
+echo "==> Starting on port ${SLIPWAY_PORT}"
 docker compose up -d
 
 echo "==> Status"
 docker compose ps
-docker logs --tail 40 slipway || true
-echo "Panel: tunnel to http://127.0.0.1:8080 from your PC"
+IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+echo "Open http://${IP:-YOUR_SERVER_IP}:${SLIPWAY_PORT}"

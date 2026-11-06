@@ -28,49 +28,42 @@ export function Settings() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <section>
-        <p className="text-sm uppercase tracking-[0.18em] text-[var(--color-teal)]">Settings</p>
-        <h1 className="mt-2 font-display text-4xl font-800 tracking-tight">Panel</h1>
-        <p className="mt-2 max-w-xl text-[var(--color-fog)]">
-          Configure how Slipway links to apps on this Linux host — no terminal required.
-        </p>
+        <h1 className="text-3xl font-700 tracking-tight">Settings</h1>
+        <p className="mt-1.5 text-[var(--color-fog)]">Panel connection and host status.</p>
       </section>
 
-      <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-6">
-        <h2 className="font-display text-xl font-700">Status</h2>
+      <div className="surface p-5">
+        <h2 className="text-lg font-700">Status</h2>
         <dl className="mt-4 space-y-3 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-[var(--color-fog)]">API</dt>
-            <dd className="text-[var(--color-teal)]">{health?.ok ? 'ok' : 'checking…'}</dd>
+            <dd className="text-[var(--ok)]">{health?.ok ? 'ok' : 'checking…'}</dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt className="text-[var(--color-fog)]">Docker</dt>
-            <dd className={health?.docker ? 'text-[var(--color-teal)]' : 'text-[var(--color-rose)]'}>
+            <dd className={health?.docker ? 'text-[var(--ok)]' : 'text-[var(--color-rose)]'}>
               {health?.docker ? 'connected' : 'unavailable'}
             </dd>
           </div>
         </dl>
       </div>
 
-      <div className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-6">
-        <h2 className="font-display text-xl font-700">Public URL</h2>
-        <p className="mt-2 text-sm text-[var(--color-fog)]">
-          Used for Open buttons (Silo, Emby, Plex, …). Usually your server IP or HTTPS host.
+      <div className="surface p-5">
+        <h2 className="text-lg font-700">Public URL</h2>
+        <p className="mt-1.5 text-sm text-[var(--color-fog)]">
+          Used for Open links to apps like Silo, Emby, and Plex.
         </p>
         <input
-          className="mt-4 w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-ink)] px-3 py-2.5 outline-none focus:border-[var(--color-teal)]"
+          className="field mt-4"
           value={publicURL}
           onChange={(e) => setPublicURL(e.target.value)}
-          placeholder="https://198.50.123.153"
+          placeholder="http://YOUR_SERVER_IP:8080"
         />
         {error && <p className="mt-3 text-sm text-[var(--color-rose)]">{error}</p>}
-        {saved && <p className="mt-3 text-sm text-[var(--color-teal)]">Saved</p>}
-        <button
-          disabled={busy}
-          onClick={() => void save()}
-          className="mt-4 rounded-lg bg-[var(--color-teal)] px-4 py-2.5 text-sm font-semibold text-[var(--color-ink)] disabled:opacity-60"
-        >
+        {saved && <p className="mt-3 text-sm text-[var(--ok)]">Saved</p>}
+        <button disabled={busy} onClick={() => void save()} className="btn btn-primary mt-4">
           {busy ? 'Saving…' : 'Save'}
         </button>
       </div>

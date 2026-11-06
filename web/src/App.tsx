@@ -39,13 +39,13 @@ export default function App() {
 
   if (gate.status === "loading") {
     return (
-      <div className="min-h-screen grid place-items-center">
+      <div className="grid min-h-screen place-items-center">
         <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="font-display text-3xl text-[var(--color-teal)]"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-2xl font-700 tracking-tight"
         >
-          Slipway
+          Slip<span className="text-[var(--color-teal)]">way</span>
         </motion.div>
       </div>
     );

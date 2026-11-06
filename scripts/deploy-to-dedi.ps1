@@ -1,4 +1,4 @@
-# Sync Slipway to the Linux dedi and build with Docker there (Linux-only runtime).
+# Sync local tree to the Linux dedi and rebuild there.
 param(
     [string]$RemoteDir = '/home/fampep/slipway',
     [switch]$SkipInstall
@@ -25,7 +25,7 @@ try {
     if (Test-Path $tar) { Remove-Item $tar -Force }
     tar -czf $tar `
         --exclude=.git --exclude=data --exclude=web/node_modules --exclude=web/dist `
-        --exclude=slipway.exe --exclude='*.exe' `
+        --exclude=slipway.exe --exclude='*.exe' --exclude=.tools `
         .
 } finally {
     Pop-Location
@@ -36,7 +36,7 @@ Write-Host "==> Uploading to dedi"
 if ($LASTEXITCODE -ne 0) { throw 'scp failed' }
 
 Write-Host "==> Extracting on Linux"
-Invoke-Remote "mkdir -p $RemoteDir && tar -xzf /tmp/slipway-deploy.tgz -C $RemoteDir && rm -f /tmp/slipway-deploy.tgz && chmod +x $RemoteDir/deploy/remote-install.sh"
+Invoke-Remote "mkdir -p $RemoteDir && tar -xzf /tmp/slipway-deploy.tgz -C $RemoteDir && rm -f /tmp/slipway-deploy.tgz && chmod +x $RemoteDir/install.sh $RemoteDir/deploy/remote-install.sh"
 
 if (-not $SkipInstall) {
     Write-Host "==> docker compose build/up on dedi"
@@ -45,8 +45,6 @@ if (-not $SkipInstall) {
 
 Write-Host @"
 
-Slipway is on the Linux dedi at $RemoteDir
-Tunnel in:
-  powershell -File $Root\scripts\slipway-tunnel.ps1
-Then open http://127.0.0.1:8080
+Slipway is on the dedi at $RemoteDir
+Open http://198.50.123.153:8080
 "@

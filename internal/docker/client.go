@@ -35,10 +35,12 @@ type ProgressEvent struct {
 type ContainerInfo struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
+	Image   string `json:"image"`
 	Status  string `json:"status"`
 	State   string `json:"state"`
 	AppID   string `json:"app_id"`
 	Running bool   `json:"running"`
+	Managed bool   `json:"managed"`
 }
 
 func New() (*Client, error) {
@@ -298,10 +300,18 @@ func (c *Client) Remove(ctx context.Context, idOrName string) error {
 func (c *Client) ListManaged(ctx context.Context) ([]ContainerInfo, error) {
 	filters, _ := json.Marshal(map[string][]string{"label": {labelManaged + "=true"}})
 	path := "/containers/json?all=1&filters=" + url.QueryEscape(string(filters))
+	return c.listContainers(ctx, path)
+}
 
+func (c *Client) ListAll(ctx context.Context) ([]ContainerInfo, error) {
+	return c.listContainers(ctx, "/containers/json?all=1")
+}
+
+func (c *Client) listContainers(ctx context.Context, path string) ([]ContainerInfo, error) {
 	var list []struct {
 		ID     string            `json:"Id"`
 		Names  []string          `json:"Names"`
+		Image  string            `json:"Image"`
 		State  string            `json:"State"`
 		Status string            `json:"Status"`
 		Labels map[string]string `json:"Labels"`
@@ -315,14 +325,95 @@ func (c *Client) ListManaged(ctx context.Context) ([]ContainerInfo, error) {
 		if len(item.Names) > 0 {
 			name = strings.TrimPrefix(item.Names[0], "/")
 		}
+		appID := ""
+		if item.Labels != nil {
+			appID = item.Labels[labelAppID]
+		}
+		managed := item.Labels != nil && item.Labels[labelManaged] == "true"
 		out = append(out, ContainerInfo{
 			ID:      item.ID,
 			Name:    name,
+			Image:   item.Image,
 			Status:  item.Status,
 			State:   item.State,
-			AppID:   item.Labels[labelAppID],
+			AppID:   appID,
 			Running: item.State == "running",
+			Managed: managed,
 		})
 	}
 	return out, nil
+}
+
+// MatchCatalogApp reports whether a running/existing container belongs to a catalog app.
+func MatchCatalogApp(app catalog.App, c ContainerInfo) bool {
+	if c.AppID != "" && c.AppID == app.ID {
+		return true
+	}
+	if imageMatches(app.Image, c.Image) {
+		return true
+	}
+	return nameMatches(app.ID, c.Name)
+}
+
+func imageMatches(want, have string) bool {
+	w := normalizeImage(want)
+	h := normalizeImage(have)
+	if w == "" || h == "" {
+		return false
+	}
+	if w == h {
+		return true
+	}
+	// Allow digest/tag drift on the same repository path.
+	if strings.HasPrefix(h, w+":") || strings.HasPrefix(h, w+"@") {
+		return true
+	}
+	if strings.HasPrefix(w, h+":") || strings.HasPrefix(w, h+"@") {
+		return true
+	}
+	return false
+}
+
+func normalizeImage(img string) string {
+	img = strings.TrimSpace(strings.ToLower(img))
+	if img == "" {
+		return ""
+	}
+	// Drop digest.
+	if i := strings.Index(img, "@"); i >= 0 {
+		img = img[:i]
+	}
+	// Drop tag (but keep registry ports like host:5000/repo).
+	if i := strings.LastIndex(img, ":"); i >= 0 {
+		maybeTag := img[i+1:]
+		if !strings.Contains(maybeTag, "/") {
+			img = img[:i]
+		}
+	}
+	return img
+}
+
+func nameMatches(appID, containerName string) bool {
+	id := strings.ToLower(strings.TrimSpace(appID))
+	name := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(containerName), "/"))
+	if id == "" || name == "" {
+		return false
+	}
+	switch name {
+	case id, "slipway-"+id, id+"-"+id+"-1", id+"-1":
+		return true
+	}
+	// Compose-style: <project>-<service>-N where service == app id
+	parts := strings.Split(name, "-")
+	if len(parts) >= 2 {
+		svc := parts[len(parts)-2]
+		if svc == id {
+			return true
+		}
+	}
+	return false
+}
+
+func IsSlipwayManaged(c ContainerInfo) bool {
+	return c.Managed || strings.HasPrefix(c.Name, "slipway-")
 }

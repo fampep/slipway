@@ -29,17 +29,15 @@ export function Apps() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-sm uppercase tracking-[0.18em] text-[var(--color-teal)]">Apps</p>
-          <h1 className="mt-2 font-display text-4xl font-800 tracking-tight">Installed services</h1>
-          <p className="mt-2 text-[var(--color-fog)]">Start, stop, restart, or remove containers.</p>
+          <h1 className="text-3xl font-700 tracking-tight">Apps</h1>
+          <p className="mt-1.5 text-[var(--color-fog)]">
+            Running services — including ones already on this host.
+          </p>
         </div>
-        <Link
-          to="/catalog"
-          className="inline-flex rounded-lg bg-[var(--color-teal)] px-4 py-2 text-sm font-semibold text-[var(--color-ink)]"
-        >
+        <Link to="/catalog" className="btn btn-primary">
           Browse catalog
         </Link>
       </section>
@@ -47,74 +45,57 @@ export function Apps() {
       {error && <p className="text-sm text-[var(--color-rose)]">{error}</p>}
 
       {apps.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-[var(--color-line)] p-10 text-center text-[var(--color-fog)]">
-          No apps installed yet.
-        </p>
+        <div className="surface border-dashed px-6 py-12 text-center text-[var(--color-fog)]">
+          No apps detected yet. Install from the catalog, or start a matching Docker container on the host.
+        </div>
       ) : (
-        <div className="space-y-3">
+        <div className="surface divide-y divide-[var(--color-line)] overflow-hidden">
           {apps.map((app) => (
-            <div
-              key={app.id}
-              className="rounded-2xl border border-[var(--color-line)] bg-[var(--color-panel)]/50 p-5"
-            >
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-display text-xl font-700">{app.name}</h3>
-                    <span
-                      className={`text-xs ${app.running ? 'text-[var(--color-teal)]' : 'text-[var(--color-fog)]'}`}
-                    >
-                      {app.status}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-[var(--color-fog)]">{app.description}</p>
-                  <p className="mt-2 font-mono text-xs text-[var(--color-fog)]/70">{app.container_name}</p>
+            <div key={app.id} className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-lg font-700">{app.name}</h3>
+                  <span className={`badge ${app.running ? 'badge-ok' : 'badge-muted'}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${app.running ? 'bg-[var(--ok)]' : 'bg-[var(--color-fog)]'}`} />
+                    {app.running ? 'running' : app.status || 'stopped'}
+                  </span>
+                  {app.external && <span className="badge badge-accent">on host</span>}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {app.url && (
-                    <a
-                      href={app.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-md border border-[var(--color-line)] px-3 py-1.5 text-sm hover:border-[var(--color-teal)] hover:text-[var(--color-teal)]"
-                    >
-                      Open
-                    </a>
-                  )}
-                  {app.running ? (
-                    <button
-                      disabled={busy === app.id}
-                      onClick={() => act(app.id, api.stop)}
-                      className="rounded-md border border-[var(--color-line)] px-3 py-1.5 text-sm"
-                    >
-                      Stop
-                    </button>
-                  ) : (
-                    <button
-                      disabled={busy === app.id}
-                      onClick={() => act(app.id, api.start)}
-                      className="rounded-md border border-[var(--color-line)] px-3 py-1.5 text-sm"
-                    >
-                      Start
-                    </button>
-                  )}
-                  <button
-                    disabled={busy === app.id}
-                    onClick={() => act(app.id, api.restart)}
-                    className="rounded-md border border-[var(--color-line)] px-3 py-1.5 text-sm"
-                  >
-                    Restart
+                <p className="mt-1 text-sm text-[var(--color-fog)]">{app.description}</p>
+                {app.container_name && (
+                  <p className="mt-1 font-mono text-xs text-[var(--color-fog)]/70">{app.container_name}</p>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {app.url && (
+                  <a href={app.url} target="_blank" rel="noreferrer" className="btn btn-ghost !py-1.5">
+                    Open
+                  </a>
+                )}
+                {app.running ? (
+                  <button disabled={busy === app.id} onClick={() => act(app.id, api.stop)} className="btn btn-ghost !py-1.5">
+                    Stop
                   </button>
-                  <button
-                    disabled={busy === app.id}
-                    onClick={() => {
-                      if (confirm(`Remove ${app.name}?`)) act(app.id, api.remove)
-                    }}
-                    className="rounded-md border border-[var(--color-rose)]/40 px-3 py-1.5 text-sm text-[var(--color-rose)]"
-                  >
-                    Remove
+                ) : (
+                  <button disabled={busy === app.id} onClick={() => act(app.id, api.start)} className="btn btn-ghost !py-1.5">
+                    Start
                   </button>
-                </div>
+                )}
+                <button disabled={busy === app.id} onClick={() => act(app.id, api.restart)} className="btn btn-ghost !py-1.5">
+                  Restart
+                </button>
+                <button
+                  disabled={busy === app.id}
+                  onClick={() => {
+                    const msg = app.external
+                      ? `Unlink ${app.name} from Slipway? The existing container will keep running.`
+                      : `Remove ${app.name} and delete its container?`
+                    if (confirm(msg)) act(app.id, api.remove)
+                  }}
+                  className="btn btn-danger !py-1.5"
+                >
+                  {app.external ? 'Unlink' : 'Remove'}
+                </button>
               </div>
             </div>
           ))}
