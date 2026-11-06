@@ -7,10 +7,16 @@ export function Settings() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [nginx, setNginx] = useState('')
+  const [caddy, setCaddy] = useState('')
 
   useEffect(() => {
     api.health().then(setHealth).catch(() => {})
     api.getSettings().then((s) => setPublicURL(s.public_url || '')).catch(() => {})
+    api.proxySnippet().then((p) => {
+      setNginx(p.nginx)
+      setCaddy(p.caddy)
+    }).catch(() => {})
   }, [])
 
   async function save() {
@@ -20,6 +26,9 @@ export function Settings() {
     try {
       await api.saveSettings({ public_url: publicURL.trim() })
       setSaved(true)
+      const p = await api.proxySnippet()
+      setNginx(p.nginx)
+      setCaddy(p.caddy)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Save failed')
     } finally {
@@ -27,11 +36,21 @@ export function Settings() {
     }
   }
 
+  async function downloadExport() {
+    const data = await api.exportConfig()
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = 'slipway-export.json'
+    a.click()
+    URL.revokeObjectURL(a.href)
+  }
+
   return (
     <div className="space-y-7">
       <section>
         <h1 className="text-3xl font-700 tracking-tight">Settings</h1>
-        <p className="mt-1.5 text-[var(--color-fog)]">Panel connection and host status.</p>
+        <p className="mt-1.5 text-[var(--color-fog)]">Panel connection, proxy, and export.</p>
       </section>
 
       <div className="surface p-5">
@@ -65,6 +84,31 @@ export function Settings() {
         {saved && <p className="mt-3 text-sm text-[var(--ok)]">Saved</p>}
         <button disabled={busy} onClick={() => void save()} className="btn btn-primary mt-4">
           {busy ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+
+      <div className="surface p-5">
+        <h2 className="text-lg font-700">Reverse proxy</h2>
+        <p className="mt-1.5 text-sm text-[var(--color-fog)]">
+          Snippets to put Slipway behind nginx or Caddy on port 80/443.
+        </p>
+        <h3 className="mt-4 text-sm font-600">nginx</h3>
+        <pre className="mt-2 overflow-auto rounded-xl bg-[var(--bg)] p-3 font-mono text-xs text-[var(--color-fog)] whitespace-pre-wrap">
+          {nginx || '…'}
+        </pre>
+        <h3 className="mt-4 text-sm font-600">Caddy</h3>
+        <pre className="mt-2 overflow-auto rounded-xl bg-[var(--bg)] p-3 font-mono text-xs text-[var(--color-fog)] whitespace-pre-wrap">
+          {caddy || '…'}
+        </pre>
+      </div>
+
+      <div className="surface p-5">
+        <h2 className="text-lg font-700">Export</h2>
+        <p className="mt-1.5 text-sm text-[var(--color-fog)]">
+          Download settings and custom catalog apps as JSON.
+        </p>
+        <button onClick={() => void downloadExport()} className="btn btn-ghost mt-4">
+          Download export
         </button>
       </div>
     </div>

@@ -3,7 +3,7 @@ name: qBittorrent
 description: Lightweight torrent client with a full-featured web UI.
 category: download
 image: lscr.io/linuxserver/qbittorrent:latest
-icon: qbittorrent
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/qbittorrent.svg
 ports:
   - host: "8081"
     container: "8080"

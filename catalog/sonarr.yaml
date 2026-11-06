@@ -3,7 +3,7 @@ name: Sonarr
 description: Smart PVR for usenet and torrents — automate TV downloads.
 category: automation
 image: lscr.io/linuxserver/sonarr:latest
-icon: sonarr
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/sonarr.svg
 ports:
   - host: "8989"
     container: "8989"

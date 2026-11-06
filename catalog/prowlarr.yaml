@@ -3,7 +3,7 @@ name: Prowlarr
 description: Indexer manager and proxy for Sonarr, Radarr, and friends.
 category: automation
 image: lscr.io/linuxserver/prowlarr:latest
-icon: prowlarr
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/prowlarr.svg
 ports:
   - host: "9696"
     container: "9696"

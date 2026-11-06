@@ -3,7 +3,7 @@ name: Silo Server
 description: Modern self-hosted media server with Jellyfin-compatible APIs, transcoding, and a React UI.
 category: media
 image: ghcr.io/silo-server/silo-server:latest
-icon: silo
+icon: https://raw.githubusercontent.com/homarr-labs/dashboard-icons/main/svg/silo-server.svg
 ports:
   - host: "8090"
     container: "8080"

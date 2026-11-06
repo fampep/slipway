@@ -9,11 +9,19 @@ services:
     volumes:
       - slipway-data:/data
       - /var/run/docker.sock:/var/run/docker.sock
+      # Host filesystem for multi-drive metrics (read-only)
+      - /:/host:ro,rslave
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
     environment:
       SLIPWAY_ADDR: ":8080"
       SLIPWAY_DATA: /data
       SLIPWAY_CATALOG: /app/catalog
       SLIPWAY_WEB: /app/web/dist
+      SLIPWAY_HOST_ROOT: /host
+      HOST_PROC: /host/proc
+      HOST_SYS: /host/sys
+      HOST_ETC: /host/etc
     group_add:
       - "${DOCKER_GID:-991}"
 

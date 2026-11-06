@@ -3,7 +3,7 @@ name: Emby
 description: Personal media server for organizing and streaming movies, TV, music, and photos.
 category: media
 image: lscr.io/linuxserver/emby:latest
-icon: emby
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/emby.svg
 ports:
   - host: "8920"
     container: "8096"

@@ -3,7 +3,7 @@ name: Plex
 description: Plex Media Server — stream your movies and shows to every screen.
 category: media
 image: lscr.io/linuxserver/plex:latest
-icon: plex
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/plex.svg
 ports:
   - host: "32400"
     container: "32400"

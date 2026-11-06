@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { api, type CatalogApp, type ProgressEvent } from '../api'
+import { AppIcon } from '../ui/AppIcon'
 
 export function Catalog() {
   const [apps, setApps] = useState<CatalogApp[]>([])
@@ -52,11 +54,16 @@ export function Catalog() {
 
   return (
     <div className="space-y-7">
-      <section>
-        <h1 className="text-3xl font-700 tracking-tight">Catalog</h1>
-        <p className="mt-1.5 text-[var(--color-fog)]">
-          Install apps, or see what’s already active on this host.
-        </p>
+      <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-700 tracking-tight">Catalog</h1>
+          <p className="mt-1.5 text-[var(--color-fog)]">
+            Install apps, or see what’s already active on this host.
+          </p>
+        </div>
+        <Link to="/catalog/add" className="btn btn-primary">
+          Add app
+        </Link>
       </section>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -113,13 +120,16 @@ export function Catalog() {
             key={app.id}
             className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
           >
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="text-base font-700">{app.name}</h3>
-                <span className="badge badge-muted capitalize">{app.category}</span>
-                {app.installed && app.external && <span className="badge badge-accent">on host</span>}
+            <div className="flex min-w-0 items-start gap-3">
+              <AppIcon icon={app.icon} name={app.name} size="md" />
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base font-700">{app.name}</h3>
+                  <span className="badge badge-muted capitalize">{app.category}</span>
+                  {app.installed && app.external && <span className="badge badge-accent">on host</span>}
+                </div>
+                <p className="mt-1 max-w-2xl text-sm text-[var(--color-fog)]">{app.description}</p>
               </div>
-              <p className="mt-1 max-w-2xl text-sm text-[var(--color-fog)]">{app.description}</p>
             </div>
             <div className="shrink-0">
               {app.installed ? (

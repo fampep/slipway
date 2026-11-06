@@ -20,7 +20,7 @@ export function Shell({
   children?: ReactNode;
 }) {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-20 sm:pb-0">
       <header className="sticky top-0 z-20 border-b border-[var(--color-line)] bg-[rgba(11,16,22,0.82)] backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-3.5">
           <div className="flex items-center gap-7">
@@ -77,6 +77,25 @@ export function Shell({
       >
         {children ?? <Outlet />}
       </motion.main>
+
+      <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--color-line)] bg-[rgba(11,16,22,0.92)] backdrop-blur-md sm:hidden">
+        <div className="mx-auto grid max-w-5xl grid-cols-4 px-2 py-2">
+          {links.map((l) => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              end={l.end}
+              className={({ isActive }) =>
+                `rounded-lg px-2 py-2 text-center text-xs ${
+                  isActive ? "font-600 text-[var(--color-teal)]" : "text-[var(--color-fog)]"
+                }`
+              }
+            >
+              {l.label}
+            </NavLink>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }

@@ -3,7 +3,7 @@ name: Filebrowser
 description: Web file manager with a clean UI for browsing and sharing files.
 category: files
 image: filebrowser/filebrowser:latest
-icon: filebrowser
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/filebrowser.svg
 ports:
   - host: "8082"
     container: "80"

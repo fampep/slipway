@@ -13,6 +13,10 @@ export type CatalogApp = {
   category: string
   image: string
   icon: string
+  website?: string
+  docs?: string
+  custom?: boolean
+  source?: string
   ports?: { host: string; container: string; protocol?: string }[]
   web_port?: string
   installed: boolean
@@ -22,6 +26,14 @@ export type CatalogApp = {
   url?: string
 }
 
+export type StackMember = {
+  name: string
+  service?: string
+  state: string
+  running: boolean
+  health?: string
+}
+
 export type InstalledApp = {
   id: string
   name: string
@@ -29,14 +41,71 @@ export type InstalledApp = {
   category: string
   icon: string
   image: string
+  website?: string
+  custom?: boolean
+  source?: string
   container_id?: string
   container_name?: string
   status: string
   running: boolean
   external?: boolean
+  health?: string
+  update_available?: boolean
+  compose_project?: string
+  compose_service?: string
+  stack?: StackMember[]
+  installed?: boolean
   url?: string
   web_port?: string
   installed_at?: string
+}
+
+export type InspectInfo = {
+  id: string
+  name: string
+  image: string
+  image_id?: string
+  status: string
+  health?: string
+  running: boolean
+  started?: string
+  ports: { host_ip?: string; host_port: string; container_port: string; protocol: string }[]
+  mounts: { source: string; destination: string; mode?: string; rw: boolean }[]
+  env: Record<string, string>
+  compose_project?: string
+  compose_service?: string
+}
+
+export type UpdateCheck = {
+  update_available: boolean
+  current_image_id?: string
+  latest_image_id?: string
+  image: string
+  pulled: boolean
+}
+
+export type StatsInfo = {
+  cpu_percent: number
+  mem_used: number
+  mem_limit: number
+  mem_percent: number
+}
+
+export type ImportPreview = {
+  app: CatalogApp & { webui_port?: string }
+  warnings?: string[]
+  source: string
+}
+
+export type DiskVolume = {
+  device: string
+  mountpoint: string
+  fstype: string
+  used: number
+  total: number
+  free: number
+  percent: number
+  health: 'ok' | 'warn' | 'critical' | 'unknown' | string
 }
 
 export type Metrics = {
@@ -51,6 +120,7 @@ export type Metrics = {
   disk_used: number
   disk_total: number
   disk_percent: number
+  disks?: DiskVolume[]
   net_sent_ps: number
   net_recv_ps: number
   docker_ok?: boolean
@@ -123,12 +193,67 @@ export const api = {
       body: JSON.stringify(body),
     }),
   catalog: () => req<CatalogApp[]>('/api/catalog'),
+  importPreview: (url: string) =>
+    req<ImportPreview>('/api/catalog/import', {
+      method: 'POST',
+      body: JSON.stringify({ url }),
+    }),
+  importSave: (app: Record<string, unknown>) =>
+    req<CatalogApp>('/api/catalog/custom', {
+      method: 'POST',
+      body: JSON.stringify(app),
+    }),
   apps: () => req<InstalledApp[]>('/api/apps'),
+  app: (id: string) => req<InstalledApp>(`/api/apps/${id}`),
+  appLogs: (id: string, tail = 200) =>
+    req<{ logs: string; container: string }>(`/api/apps/${id}/logs?tail=${tail}`),
+  appInspect: (id: string) => req<InspectInfo>(`/api/apps/${id}/inspect`),
+  appStats: (id: string) => req<StatsInfo>(`/api/apps/${id}/stats`),
+  appUpdateCheck: (id: string, pull = true) =>
+    req<UpdateCheck>(`/api/apps/${id}/update?pull=${pull ? '1' : '0'}`),
+  bulkApps: (action: 'start' | 'stop' | 'restart', ids: string[]) =>
+    req<{ results: { id: string; ok: boolean; error?: string; status?: string; running?: boolean }[] }>(
+      '/api/apps/bulk',
+      { method: 'POST', body: JSON.stringify({ action, ids }) },
+    ),
   metrics: () => req<Metrics>('/api/metrics'),
+  proxySnippet: () => req<{ nginx: string; caddy: string; host: string }>('/api/settings/proxy'),
+  exportConfig: () => req<{ public_url: string; custom_apps: CatalogApp[]; version: number }>('/api/export'),
   start: (id: string) => req(`/api/apps/${id}/start`, { method: 'POST' }),
   stop: (id: string) => req(`/api/apps/${id}/stop`, { method: 'POST' }),
   restart: (id: string) => req(`/api/apps/${id}/restart`, { method: 'POST' }),
   remove: (id: string) => req(`/api/apps/${id}`, { method: 'DELETE' }),
+  updateStream: async function* (id: string): AsyncGenerator<ProgressEvent> {
+    const res = await fetch(`/api/apps/${id}/update`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    if (!res.ok || !res.body) {
+      let msg = res.statusText
+      try {
+        const body = await res.json()
+        if (body?.error) msg = body.error
+      } catch {
+        /* ignore */
+      }
+      throw new Error(msg)
+    }
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const lines = buf.split('\n')
+      buf = lines.pop() || ''
+      for (const line of lines) {
+        if (!line.trim()) continue
+        yield JSON.parse(line) as ProgressEvent
+      }
+    }
+    if (buf.trim()) yield JSON.parse(buf) as ProgressEvent
+  },
   installStream: async function* (id: string): AsyncGenerator<ProgressEvent> {
     const res = await fetch(`/api/apps/${id}/install`, {
       method: 'POST',

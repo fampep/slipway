@@ -3,7 +3,7 @@ name: Jellyfin
 description: Free software media system for movies, TV, music, and more.
 category: media
 image: jellyfin/jellyfin:latest
-icon: jellyfin
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/jellyfin.svg
 ports:
   - host: "8096"
     container: "8096"

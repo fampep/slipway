@@ -3,7 +3,7 @@ name: Radarr
 description: Movie collection manager for Usenet and BitTorrent users.
 category: automation
 image: lscr.io/linuxserver/radarr:latest
-icon: radarr
+icon: https://raw.githubusercontent.com/walkxcode/dashboard-icons/main/svg/radarr.svg
 ports:
   - host: "7878"
     container: "7878"

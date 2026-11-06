@@ -35,7 +35,9 @@ func main() {
 	}
 	defer st.Close()
 
-	cat, err := catalog.Load(*catalogDir)
+	customCatalog := filepath.Join(*dataDir, "catalog", "custom")
+	_ = os.MkdirAll(customCatalog, 0o755)
+	cat, err := catalog.LoadWithCustom(*catalogDir, customCatalog)
 	if err != nil {
 		log.Fatalf("load catalog: %v", err)
 	}

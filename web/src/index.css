@@ -179,6 +179,16 @@ input {
   color: var(--accent);
 }
 
+.badge-danger {
+  background: rgba(251, 113, 133, 0.14);
+  color: var(--color-rose);
+}
+
+.badge-warn {
+  background: rgba(251, 191, 36, 0.14);
+  color: var(--color-amber);
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

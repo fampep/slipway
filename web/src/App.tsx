@@ -5,6 +5,8 @@ import { api, type User } from "./api";
 import { Shell } from "./layout/Shell";
 import { AuthPage } from "./pages/AuthPage";
 import { SetupWizard } from "./pages/SetupWizard";
+import { AddApp } from "./pages/AddApp";
+import { AppDetail } from "./pages/AppDetail";
 import { Apps } from "./pages/Apps";
 import { Catalog } from "./pages/Catalog";
 import { Overview } from "./pages/Overview";
@@ -78,7 +80,9 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Overview />} />
           <Route path="/apps" element={<Apps />} />
+          <Route path="/apps/:id" element={<AppDetail />} />
           <Route path="/catalog" element={<Catalog />} />
+          <Route path="/catalog/add" element={<AddApp />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

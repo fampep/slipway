@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,22 +17,39 @@ import (
 )
 
 type appView struct {
-	ID            string         `json:"id"`
-	Name          string         `json:"name"`
-	Description   string         `json:"description"`
-	Category      string         `json:"category"`
-	Icon          string         `json:"icon"`
-	Image         string         `json:"image"`
-	Installed     bool           `json:"installed"`
-	Status        string         `json:"status"`
-	Running       bool           `json:"running"`
-	External      bool           `json:"external"`
-	ContainerID   string         `json:"container_id,omitempty"`
-	ContainerName string         `json:"container_name,omitempty"`
-	URL           string         `json:"url,omitempty"`
-	WebPort       string         `json:"web_port,omitempty"`
-	Ports         []catalog.Port `json:"ports,omitempty"`
-	InstalledAt   *time.Time     `json:"installed_at,omitempty"`
+	ID             string         `json:"id"`
+	Name           string         `json:"name"`
+	Description    string         `json:"description"`
+	Category       string         `json:"category"`
+	Icon           string         `json:"icon"`
+	Image          string         `json:"image"`
+	Website        string         `json:"website,omitempty"`
+	Docs           string         `json:"docs,omitempty"`
+	Custom         bool           `json:"custom,omitempty"`
+	Source         string         `json:"source,omitempty"`
+	Installed      bool           `json:"installed"`
+	Status         string         `json:"status"`
+	Running        bool           `json:"running"`
+	External       bool           `json:"external"`
+	Health         string         `json:"health,omitempty"`
+	UpdateAvailable bool          `json:"update_available,omitempty"`
+	ComposeProject string         `json:"compose_project,omitempty"`
+	ComposeService string         `json:"compose_service,omitempty"`
+	Stack          []stackMember  `json:"stack,omitempty"`
+	ContainerID    string         `json:"container_id,omitempty"`
+	ContainerName  string         `json:"container_name,omitempty"`
+	URL            string         `json:"url,omitempty"`
+	WebPort        string         `json:"web_port,omitempty"`
+	Ports          []catalog.Port `json:"ports,omitempty"`
+	InstalledAt    *time.Time     `json:"installed_at,omitempty"`
+}
+
+type stackMember struct {
+	Name    string `json:"name"`
+	Service string `json:"service,omitempty"`
+	State   string `json:"state"`
+	Running bool   `json:"running"`
+	Health  string `json:"health,omitempty"`
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -295,34 +313,48 @@ func (s *Server) control(w http.ResponseWriter, r *http.Request, action string) 
 		writeError(w, http.StatusBadRequest, "invalid app id")
 		return
 	}
-	inst, err := s.deps.Store.GetInstalled(id)
-	if err != nil || inst == nil {
-		writeError(w, http.StatusNotFound, "app not installed")
-		return
-	}
-	if s.deps.Docker == nil || !s.deps.Docker.Available() {
-		writeError(w, http.StatusServiceUnavailable, "docker is not available")
-		return
-	}
-	ctx := r.Context()
-	target := inst.ContainerName
-	switch action {
-	case "start":
-		err = s.deps.Docker.Start(ctx, target)
-		inst.Status = "running"
-	case "stop":
-		err = s.deps.Docker.Stop(ctx, target)
-		inst.Status = "exited"
-	case "restart":
-		err = s.deps.Docker.Restart(ctx, target)
-		inst.Status = "running"
-	}
+	status, running, err := s.controlOne(r.Context(), id, action)
 	if err != nil {
+		if err == errNotFound {
+			writeError(w, http.StatusNotFound, "app not installed")
+			return
+		}
+		if strings.Contains(err.Error(), "docker is not available") {
+			writeError(w, http.StatusServiceUnavailable, err.Error())
+			return
+		}
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	_ = s.deps.Store.UpdateInstalledStatus(id, inst.Status)
-	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": inst.Status, "running": inst.Status == "running"})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "status": status, "running": running})
+}
+
+func (s *Server) controlOne(ctx context.Context, id, action string) (status string, running bool, err error) {
+	if s.deps.Docker == nil || !s.deps.Docker.Available() {
+		return "", false, fmt.Errorf("docker is not available")
+	}
+	target, err := s.resolveContainerName(ctx, id)
+	if err != nil || target == "" {
+		return "", false, errNotFound
+	}
+	switch action {
+	case "start":
+		err = s.deps.Docker.Start(ctx, target)
+		status = "running"
+	case "stop":
+		err = s.deps.Docker.Stop(ctx, target)
+		status = "exited"
+	case "restart":
+		err = s.deps.Docker.Restart(ctx, target)
+		status = "running"
+	default:
+		return "", false, fmt.Errorf("unknown action")
+	}
+	if err != nil {
+		return "", false, err
+	}
+	_ = s.deps.Store.UpdateInstalledStatus(id, status)
+	return status, status == "running", nil
 }
 
 func (s *Server) handleRemove(w http.ResponseWriter, r *http.Request) {
@@ -371,7 +403,20 @@ func (s *Server) syncInstalled(ctx context.Context) ([]appView, error) {
 			v.External = !docker.IsSlipwayManaged(c)
 			v.ContainerID = c.ID
 			v.ContainerName = c.Name
+			v.Health = c.Health
+			v.ComposeProject = c.ComposeProject
+			v.ComposeService = c.ComposeService
 			_ = s.deps.Store.UpdateInstalledStatus(inst.ID, c.State)
+			if c.ComposeProject != "" && s.deps.Docker != nil {
+				if siblings, err := s.deps.Docker.ListStack(ctx, c.ComposeProject); err == nil && len(siblings) > 1 {
+					for _, sib := range siblings {
+						v.Stack = append(v.Stack, stackMember{
+							Name: sib.Name, Service: sib.ComposeService,
+							State: sib.State, Running: sib.Running, Health: sib.Health,
+						})
+					}
+				}
+			}
 		}
 		out = append(out, v)
 	}
@@ -461,6 +506,10 @@ func (s *Server) catalogToView(app catalog.App) appView {
 		Category:    app.Category,
 		Icon:        app.Icon,
 		Image:       app.Image,
+		Website:     app.Website,
+		Docs:        app.Docs,
+		Custom:      app.Custom,
+		Source:      app.Source,
 		Ports:       app.Ports,
 		WebPort:     app.WebUIPort,
 		URL:         s.webURL(app),
@@ -491,20 +540,27 @@ func (s *Server) webURL(app catalog.App) string {
 	if port == "" {
 		return ""
 	}
+	path := app.DefaultPath
+	if path != "" && !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
 	base, _ := s.deps.Store.GetSetting("public_url")
 	if base == "" {
-		return "http://localhost:" + port
+		return "http://localhost:" + port + path
 	}
 	base = strings.TrimRight(base, "/")
 	u, err := url.Parse(base)
 	if err != nil || u.Host == "" {
 		host := strings.TrimPrefix(strings.TrimPrefix(base, "https://"), "http://")
-		return "http://" + host + ":" + port
+		if i := strings.Index(host, "/"); i >= 0 {
+			host = host[:i]
+		}
+		return "http://" + host + ":" + port + path
 	}
 	host := u.Hostname()
 	scheme := u.Scheme
 	if scheme == "" {
 		scheme = "http"
 	}
-	return scheme + "://" + host + ":" + port
+	return scheme + "://" + host + ":" + port + path
 }
