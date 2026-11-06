@@ -13,3 +13,6 @@ bin/
 *_key
 .tools/
 
+
+scripts/sec-check.py
+
