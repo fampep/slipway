@@ -41,6 +41,7 @@ func New(deps Deps) *Server {
 	}
 	go s.hub.Run()
 	go s.broadcastLoop()
+	go s.watchContainers()
 	return s
 }
 
@@ -97,13 +98,19 @@ func (s *Server) Router() http.Handler {
 			r.Get("/catalog", s.handleCatalog)
 			r.Post("/catalog/import", s.handleImportPreview)
 			r.Post("/catalog/custom", s.handleImportSave)
+			r.Post("/catalog/custom/batch", s.handleImportSaveMany)
 			r.Delete("/catalog/custom/{id}", s.handleDeleteCustom)
+			r.Get("/catalog/stack", s.handleStackRecommend)
 			r.Get("/catalog/{id}/ports", s.handlePortCheck)
 			r.Get("/apps", s.handleApps)
 			r.Post("/apps/bulk", s.handleBulkApps)
 			r.Get("/apps/updates", s.handleCheckAllUpdates)
+			r.Post("/apps/update-all", s.handleUpdateAll)
+			r.Get("/changelog", s.handleChangelog)
+			r.Post("/changelog/seen", s.handleChangelogSeen)
 			r.Get("/apps/{id}", s.handleGetApp)
 			r.Get("/apps/{id}/logs", s.handleAppLogs)
+			r.Get("/apps/{id}/logs/stream", s.handleAppLogsStream)
 			r.Get("/apps/{id}/inspect", s.handleAppInspect)
 			r.Get("/apps/{id}/stats", s.handleAppStats)
 			r.Get("/apps/{id}/update", s.handleAppUpdateCheck)

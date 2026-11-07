@@ -611,6 +611,31 @@ func (c *Client) Logs(ctx context.Context, idOrName string, tail int) (string, e
 	return decodeDockerLogs(data), nil
 }
 
+// LogsFollow streams multiplexed docker logs; caller must close the body.
+func (c *Client) LogsFollow(ctx context.Context, idOrName string, tail int) (io.ReadCloser, error) {
+	if tail <= 0 {
+		tail = 100
+	}
+	if tail > 500 {
+		tail = 500
+	}
+	path := fmt.Sprintf("/containers/%s/logs?stdout=1&stderr=1&timestamps=1&follow=1&tail=%d", url.PathEscape(idOrName), tail)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+path, nil)
+	if err != nil {
+		return nil, err
+	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode >= 300 {
+		defer res.Body.Close()
+		b, _ := io.ReadAll(io.LimitReader(res.Body, 4096))
+		return nil, fmt.Errorf("docker logs: %s — %s", res.Status, strings.TrimSpace(string(b)))
+	}
+	return res.Body, nil
+}
+
 func (c *Client) Stats(ctx context.Context, idOrName string) (*StatsInfo, error) {
 	path := "/containers/" + url.PathEscape(idOrName) + "/stats?stream=0"
 	var raw struct {

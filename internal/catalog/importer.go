@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 	"unicode"
@@ -17,6 +18,7 @@ var httpClient = &http.Client{Timeout: 20 * time.Second}
 
 type ImportPreview struct {
 	App      App      `json:"app"`
+	Apps     []App    `json:"apps,omitempty"` // multi-service compose paste
 	Warnings []string `json:"warnings,omitempty"`
 	Source   string   `json:"source"`
 }
@@ -38,6 +40,27 @@ func PreviewImport(raw string) (*ImportPreview, error) {
 	default:
 		return nil, fmt.Errorf("unsupported source — use a GitHub URL, compose URL, or image reference")
 	}
+}
+
+// PreviewComposeYAML parses pasted docker-compose YAML (single or multi-service).
+func PreviewComposeYAML(body string) (*ImportPreview, error) {
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return nil, fmt.Errorf("paste compose YAML")
+	}
+	apps, warns, err := parseComposeAll(body, "paste")
+	if err != nil {
+		return nil, err
+	}
+	if len(apps) == 0 {
+		return nil, fmt.Errorf("no services found")
+	}
+	return &ImportPreview{
+		App:      apps[0],
+		Apps:     apps,
+		Source:   "paste",
+		Warnings: warns,
+	}, nil
 }
 
 func looksLikeImage(s string) bool {
@@ -191,37 +214,61 @@ func fetchText(raw string) (string, error) {
 }
 
 func parseCompose(body, source string) (App, []string, error) {
+	apps, warns, err := parseComposeAll(body, source)
+	if err != nil {
+		return App{}, nil, err
+	}
+	if len(apps) == 0 {
+		return App{}, nil, fmt.Errorf("no service with an image found")
+	}
+	if len(apps) > 1 {
+		warns = append(warns, fmt.Sprintf("%d services found — using %s as primary; paste mode can import all.", len(apps), apps[0].ID))
+	}
+	return apps[0], warns, nil
+}
+
+func parseComposeAll(body, source string) ([]App, []string, error) {
 	var doc map[string]any
 	if err := yaml.Unmarshal([]byte(body), &doc); err != nil {
-		return App{}, nil, fmt.Errorf("invalid compose YAML: %w", err)
+		return nil, nil, fmt.Errorf("invalid compose YAML: %w", err)
 	}
 	services, _ := doc["services"].(map[string]any)
 	if len(services) == 0 {
-		return App{}, nil, fmt.Errorf("compose has no services")
+		return nil, nil, fmt.Errorf("compose has no services")
 	}
 
-	var (
-		svcName string
-		svc     map[string]any
-	)
-	for name, raw := range services {
-		m, ok := raw.(map[string]any)
+	names := make([]string, 0, len(services))
+	for name := range services {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	out := make([]App, 0, len(names))
+	warns := []string{}
+	for _, svcName := range names {
+		raw := services[svcName]
+		svc, ok := raw.(map[string]any)
 		if !ok {
 			continue
 		}
-		if _, hasImg := m["image"]; !hasImg {
+		if _, hasImg := svc["image"]; !hasImg {
 			continue
 		}
-		svcName, svc = name, m
-		if ports, ok := m["ports"]; ok {
-			if arr, ok := ports.([]any); ok && len(arr) > 0 {
-				break
-			}
+		app, w, err := serviceToApp(svcName, svc, source)
+		if err != nil {
+			warns = append(warns, svcName+": "+err.Error())
+			continue
 		}
+		out = append(out, app)
+		warns = append(warns, w...)
 	}
-	if svc == nil {
-		return App{}, nil, fmt.Errorf("no service with an image found")
+	if len(out) == 0 {
+		return nil, nil, fmt.Errorf("no service with an image found")
 	}
+	return out, warns, nil
+}
+
+func serviceToApp(svcName string, svc map[string]any, source string) (App, []string, error) {
 
 	image, _ := svc["image"].(string)
 	if image == "" {

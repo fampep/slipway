@@ -191,11 +191,16 @@ server {
     reverse_proxy 127.0.0.1:` + port + `
 }
 `
+	traefik := "labels:\n" +
+		"  - \"traefik.enable=true\"\n" +
+		"  - \"traefik.http.routers." + app.ID + ".rule=Host(`" + host + "`)\"\n" +
+		"  - \"traefik.http.services." + app.ID + ".loadbalancer.server.port=" + port + "\"\n"
 	writeJSON(w, http.StatusOK, map[string]string{
-		"nginx": nginx,
-		"caddy": caddy,
-		"host":  host,
-		"port":  port,
+		"nginx":   nginx,
+		"caddy":   caddy,
+		"traefik": traefik,
+		"host":    host,
+		"port":    port,
 	})
 }
 

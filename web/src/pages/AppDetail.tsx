@@ -26,7 +26,8 @@ export function AppDetail() {
   const [busy, setBusy] = useState(false)
   const [update, setUpdate] = useState<UpdateCheck | null>(null)
   const [updateMsg, setUpdateMsg] = useState('')
-  const [proxy, setProxy] = useState<{ nginx: string; caddy: string } | null>(null)
+  const [proxy, setProxy] = useState<{ nginx: string; caddy: string; traefik?: string } | null>(null)
+  const [live, setLive] = useState(false)
 
   async function refresh() {
     const found = await api.app(id)
@@ -51,9 +52,26 @@ export function AppDetail() {
       api.appInspect(id).then(setInspect).catch(() => setInspect(null))
     }
     if (tab === 'connect') {
-      api.appProxy(id).then((p) => setProxy({ nginx: p.nginx, caddy: p.caddy })).catch(() => setProxy(null))
+      api.appProxy(id).then((p) => setProxy({ nginx: p.nginx, caddy: p.caddy, traefik: p.traefik })).catch(() => setProxy(null))
     }
   }, [id, tab, app?.container_name, app?.installed])
+
+  useEffect(() => {
+    if (tab !== 'logs' || !live || !id) return
+    const es = new EventSource(api.appLogsStreamURL(id, 80), { withCredentials: true } as EventSourceInit)
+    es.onmessage = (ev) => {
+      setLogs((prev) => {
+        const next = (prev ? prev + '\n' : '') + ev.data
+        const lines = next.split('\n')
+        return lines.slice(-400).join('\n')
+      })
+    }
+    es.onerror = () => {
+      setLive(false)
+      es.close()
+    }
+    return () => es.close()
+  }, [tab, live, id])
 
   async function toggleFavorite() {
     if (!app) return
@@ -317,12 +335,18 @@ export function AppDetail() {
           <div className="flex flex-wrap gap-2">
             <button
               className="btn btn-ghost !py-1.5"
-              disabled={busy}
+              disabled={busy || live}
               onClick={() =>
                 api.appLogs(id, 300).then((r) => setLogs(r.logs)).catch((e) => setLogs(e.message))
               }
             >
               Refresh
+            </button>
+            <button
+              className={`btn !py-1.5 ${live ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setLive((v) => !v)}
+            >
+              {live ? 'Live · stop' : 'Live tail'}
             </button>
             <button className="btn btn-ghost !py-1.5" onClick={downloadLogs} disabled={!logs}>
               Download .txt
@@ -392,7 +416,20 @@ export function AppDetail() {
               <pre className="overflow-auto rounded-xl bg-[var(--bg)] p-3 font-mono text-xs text-[var(--color-fog)] whitespace-pre-wrap">
                 {proxy.caddy}
               </pre>
+              {proxy.traefik && (
+                <>
+                  <h3 className="text-sm font-600">Traefik labels</h3>
+                  <pre className="overflow-auto rounded-xl bg-[var(--bg)] p-3 font-mono text-xs text-[var(--color-fog)] whitespace-pre-wrap">
+                    {proxy.traefik}
+                  </pre>
+                </>
+              )}
             </div>
+          )}
+          {stats && (stats.cpu_percent > 90 || stats.mem_percent > 90) && (
+            <p className="text-sm text-[var(--color-amber)]">
+              High resource use — CPU {stats.cpu_percent.toFixed(0)}% / mem {stats.mem_percent.toFixed(0)}%.
+            </p>
           )}
         </div>
       )}

@@ -14,165 +14,118 @@ Higher = sooner. Check items off as they ship.
 - [x] Paste GitHub / compose / image → catalog
 - [x] Health badges, updates, bulk actions
 - [x] Proxy snippets + export + mobile nav
-- [x] **Faster install:** pull prebuilt `ghcr.io` image when published (fallback: local build)
-- [x] Install script waits for healthy panel + prints clear next step
-- [x] Toast feedback for install / start / stop / save
-- [x] Catalog “featured media” row + richer empty states
-- [x] Compose healthcheck + uninstall flag
-- [x] Publish workflow for GHCR (`ghcr.io/fampep/slipway`)
-- [x] First-run: auto-suggest public URL from host IP
-- [x] “Open” links always use Settings public URL + port + path
+- [x] Faster install via GHCR + health wait
+- [x] Toasts, featured catalog, mobile nav
+- [x] First-run public URL suggest + Open URL composition
 
 ---
 
 ## Install & ops (P1)
 
-- [x] `slipway update` helper script (`scripts/slipway-update.sh`)
-- [x] Optional bind `127.0.0.1` vs `0.0.0.0` (`SLIPWAY_BIND`)
-- [x] Port-in-use detection with friendly fix hint (catalog port check)
-- [x] Uninstall script (`install.sh --uninstall`)
-- [x] Backup panel data volume one-liner (printed by install)
-- [x] Healthcheck in compose (`/api/health`)
-- [x] Auto-restart on crash (already `unless-stopped` — documented)
-- [x] Version badge in Settings
-- [ ] Changelog page or “What’s new” after update
+- [x] Update helper script + uninstall + backup one-liner
+- [x] `SLIPWAY_BIND` + compose healthcheck + version badge
+- [x] Port conflict detection
+- [x] Changelog / What’s new in Settings
 
 ---
 
 ## Apps & catalog (P1)
 
-- [x] More catalog apps: Jellyseerr, Overseerr, Bazarr, Tdarr, NZBGet, SABnzbd, Kavita, Audiobookshelf, Homarr, Portainer, Uptime Kuma, Vaultwarden, Nextcloud, Immich
-- [x] App tags: `media`, `download`, `request`, `tools`, `storage`
-- [ ] Featured / recommended install order (Arr stack wizard)
-- [x] Per-app env editor before install (JSON env overrides on install API; UI can pass env)
-- [ ] Per-app volume path picker (host folders)
-- [x] Port conflict warning before install
-- [x] Default path for Open (`default_path`)
-- [x] Delete custom imported apps from UI
-- [ ] Import from docker-compose paste (multi-service)
-- [x] Stack grouping: compose project siblings on app page
-- [x] Pin / favorite apps on Overview
-- [x] Search by image name / port (catalog search covers name/desc/category; tags shown)
+- [x] Large catalog + tags
+- [x] Arr stack wizard (recommended order)
+- [x] Env overrides on install API
+- [x] Media/downloads path presets (Settings → applied on install)
+- [x] Port conflict warning
+- [x] Default path / delete custom / pin favorites
+- [x] Import docker-compose paste (multi-service)
+- [x] Stack siblings on app page
 
 ---
 
 ## Reliability & health (P1)
 
-- [x] HTTP health probes (`health_url` in catalog when Docker health empty)
-- [x] Unhealthy → Overview attention
-- [ ] Optional webhook fire on die/install fail (setting stored; delivery next)
-- [ ] Auto-restart policy UI toggle
-- [ ] Disk full warning thresholds (configurable)
-- [ ] Container die notification (webhook / Discord) — wiring pending
-- [x] Log download button (txt)
-- [ ] Live log tail (SSE/WebSocket), not only snapshot
-- [ ] Resource limits soft warnings (CPU/mem hot)
+- [x] HTTP health probes + Overview attention
+- [x] Webhook on install/update fail + container die
+- [x] Log download + **live log tail (SSE)**
+- [x] Soft CPU/mem hot warning on app page
+- [x] Disk warn % setting (stored)
+- [ ] Auto-restart policy UI toggle (compose restart already default)
 
 ---
 
 ## Updates (P1)
 
-- [x] “Check all for updates” button
-- [x] Show image id / started relative time on app page
-- [ ] Update all managed apps (queue)
-- [ ] Watchtower-style optional auto-update (opt-in)
-- [ ] Rollback to previous image id (best effort)
+- [x] Check all + **Update all** queue
+- [x] Relative started time / image info
+- [x] Opt-in auto-update flag in Settings
+- [ ] Rollback to previous image id
 
 ---
 
 ## UI / UX (P1–P2)
 
-- [x] Global toast system
-- [ ] Confirm modals that aren’t browser `confirm()`
-- [ ] Keyboard shortcuts (`/` search, `g a` apps)
-- [ ] Command palette (install / open / restart)
-- [x] Better mobile app actions (bottom nav already)
-- [ ] Skeleton loaders instead of “Loading…”
-- [x] Relative time (“started 2h ago”)
-- [x] Dark theme polish pass (landing + overview hero)
-- [x] Empty states with one obvious next action everywhere
-- [x] Onboarding checklist after first login
-- [ ] Accessibility: focus rings, aria labels, contrast audit
+- [x] Toasts + confirm dialogs + focus rings
+- [x] Onboarding checklist + empty states
+- [x] Accent color picker
+- [ ] Keyboard shortcuts / command palette
+- [ ] Full skeleton loaders everywhere
+- [ ] Accessibility audit pass
 
 ---
 
 ## Security & access (P2)
 
-- [x] HTTPS docs / Caddy+nginx recipes in Settings
-- [ ] Session expiry / “remember me”
-- [x] Change password in Settings
-- [ ] Optional 2FA (TOTP)
-- [ ] CSRF already cookie-based — audit
-- [ ] Read-only viewer role
-- [ ] Audit log (who installed/stopped what)
-- [x] Secrets never in export JSON by default (export is settings + custom apps only)
+- [x] Proxy recipes + change password
+- [ ] Session / remember me / 2FA
+- [ ] Viewer role + audit log
 
 ---
 
 ## Networking (P2)
 
-- [x] Per-app reverse-proxy snippet (app Connect tab)
-- [ ] Traefik labels generator
-- [ ] Optional Cloudflare Tunnel recipe (opt-in, not required)
-- [ ] Custom domain map: `jellyfin.example.com` → container port
-- [ ] Show LAN vs WAN URLs
+- [x] Per-app nginx/Caddy + **Traefik labels**
+- [ ] Cloudflare Tunnel recipe
+- [ ] Custom domain map UI
 
 ---
 
 ## Data & storage (P2)
 
-- [ ] Media library path presets (`/home/.../storage/media`)
-- [ ] Disk health SMART summary if available
-- [ ] Quota / big-folder finder (top usage)
-- [ ] Backup app config dirs
-- [ ] Move data dir wizard
+- [x] Media library path presets
+- [ ] SMART / quota / move-data wizard
 
 ---
 
 ## Platform (P2–P3)
 
-- [ ] Multi-host (remote Docker contexts) — later
-- [ ] ARM64 images
-- [ ] Podman compatibility note / test
-- [x] Windows host: not a goal (Linux only)
-- [x] Kubernetes: out of scope
+- [x] ARM64 + amd64 publish workflow
+- [x] Podman note (Linux Docker-compatible socket; Podman may work with DOCKER_HOST)
+- [x] Windows host / K8s out of scope
 
 ---
 
 ## Docs & community (P2)
 
-- [x] `docs/apps.md` — how to write a catalog YAML
-- [ ] Screenshot / short demo GIF in README
-- [x] Contributing guide
-- [x] Issue / feature request templates
-- [ ] Discord or Discussions link (optional)
+- [x] docs/apps.md, CONTRIBUTING, issue templates, CHANGELOG
+- [ ] Demo GIF / Discussions
 
 ---
 
 ## Nice-to-have (P3)
 
-- [ ] Themes (accent color picker)
-- [ ] Widgets on Overview (custom layout)
-- [ ] Built-in terminal to container
-- [ ] File browser integration deep-link
-- [ ] Stats history graphs (24h)
-- [ ] Mobile PWA install
-- [ ] i18n
+- [ ] Themes beyond accent / widgets / terminal / PWA / i18n / graphs
 
 ---
 
 ## Explicitly out of scope (for now)
 
-- Full Kubernetes control plane
-- Marketplace billing
-- Replacing Portainer / RunTipi entirely
-- Windows as the Docker host
+- Full Kubernetes · marketplace billing · replacing Portainer entirely · Windows Docker host
 
 ---
 
 ## How we ship
 
-1. Keep README short (install + what you get).
-2. Put detail here in `ROADMAP.md`.
-3. Prefer one-liner install; never require tunnels for the happy path.
-4. Every push should say what improved / fixed.
+1. Keep README short.
+2. Detail lives here.
+3. One-liner install; no tunnels required.
+4. Every push explains what improved / fixed.

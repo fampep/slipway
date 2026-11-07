@@ -166,23 +166,41 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 	publicURL, _ := s.deps.Store.GetSetting("public_url")
 	webhook, _ := s.deps.Store.GetSetting("webhook_url")
+	media, _ := s.deps.Store.GetSetting("media_path")
+	downloads, _ := s.deps.Store.GetSetting("downloads_path")
+	diskWarn, _ := s.deps.Store.GetSetting("disk_warn_percent")
+	accent, _ := s.deps.Store.GetSetting("accent")
+	autoUpdate, _ := s.deps.Store.GetSetting("auto_update")
+	if diskWarn == "" {
+		diskWarn = "85"
+	}
 	scheme := "http"
 	if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
 		scheme = "https"
 	}
 	suggested := scheme + "://" + r.Host
 	writeJSON(w, http.StatusOK, map[string]any{
-		"public_url":    publicURL,
-		"webhook_url":   webhook,
-		"suggested_url": suggested,
-		"version":       Version,
+		"public_url":        publicURL,
+		"webhook_url":       webhook,
+		"media_path":        media,
+		"downloads_path":    downloads,
+		"disk_warn_percent": diskWarn,
+		"accent":            accent,
+		"auto_update":       autoUpdate == "1",
+		"suggested_url":     suggested,
+		"version":           Version,
 	})
 }
 
 func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		PublicURL  string `json:"public_url"`
-		WebhookURL string `json:"webhook_url"`
+		PublicURL       string `json:"public_url"`
+		WebhookURL      string `json:"webhook_url"`
+		MediaPath       string `json:"media_path"`
+		DownloadsPath   string `json:"downloads_path"`
+		DiskWarnPercent string `json:"disk_warn_percent"`
+		Accent          string `json:"accent"`
+		AutoUpdate      *bool  `json:"auto_update"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
@@ -207,7 +225,28 @@ func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	_ = s.deps.Store.SetSetting("webhook_url", webhook)
-	writeJSON(w, http.StatusOK, map[string]any{"public_url": cleaned, "webhook_url": webhook, "version": Version})
+	_ = s.deps.Store.SetSetting("media_path", strings.TrimSpace(body.MediaPath))
+	_ = s.deps.Store.SetSetting("downloads_path", strings.TrimSpace(body.DownloadsPath))
+	if body.DiskWarnPercent != "" {
+		_ = s.deps.Store.SetSetting("disk_warn_percent", body.DiskWarnPercent)
+	}
+	if body.Accent != "" {
+		_ = s.deps.Store.SetSetting("accent", body.Accent)
+	}
+	if body.AutoUpdate != nil {
+		if *body.AutoUpdate {
+			_ = s.deps.Store.SetSetting("auto_update", "1")
+		} else {
+			_ = s.deps.Store.SetSetting("auto_update", "0")
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"public_url":     cleaned,
+		"webhook_url":    webhook,
+		"media_path":     strings.TrimSpace(body.MediaPath),
+		"downloads_path": strings.TrimSpace(body.DownloadsPath),
+		"version":        Version,
+	})
 }
 
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
@@ -307,11 +346,13 @@ func (s *Server) handleInstall(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
+	app = s.applyPathPresets(app)
 	containerID, err := s.deps.Docker.Install(r.Context(), app, s.deps.DataDir, func(ev docker.ProgressEvent) {
 		encode(ev)
 	})
 	if err != nil {
 		encode(map[string]string{"status": "error", "stage": "error", "message": err.Error()})
+		s.notifyWebhook(r.Context(), "install_failed", app.Name+": "+err.Error())
 		return
 	}
 

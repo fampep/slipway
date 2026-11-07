@@ -96,9 +96,14 @@ export function Catalog() {
             One-click installs — or paste your own from GitHub.
           </p>
         </div>
-        <Link to="/catalog/add" className="btn btn-primary">
-          Add app
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/catalog/stack" className="btn btn-ghost">
+            Arr stack
+          </Link>
+          <Link to="/catalog/add" className="btn btn-primary">
+            Add app
+          </Link>
+        </div>
       </section>
 
       {!q && category === 'all' && featured.length > 0 && (

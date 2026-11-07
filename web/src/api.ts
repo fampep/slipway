@@ -100,6 +100,7 @@ export type StatsInfo = {
 
 export type ImportPreview = {
   app: CatalogApp & { webui_port?: string }
+  apps?: (CatalogApp & { webui_port?: string })[]
   warnings?: string[]
   source: string
 }
@@ -194,10 +195,26 @@ export const api = {
   logout: () => req<{ ok: boolean }>('/api/logout', { method: 'POST' }),
   me: () => req<User>('/api/me'),
   getSettings: () =>
-    req<{ public_url: string; webhook_url?: string; suggested_url?: string; version?: string }>(
-      '/api/settings',
-    ),
-  saveSettings: (body: { public_url: string; webhook_url?: string }) =>
+    req<{
+      public_url: string
+      webhook_url?: string
+      media_path?: string
+      downloads_path?: string
+      disk_warn_percent?: string
+      accent?: string
+      auto_update?: boolean
+      suggested_url?: string
+      version?: string
+    }>('/api/settings'),
+  saveSettings: (body: {
+    public_url: string
+    webhook_url?: string
+    media_path?: string
+    downloads_path?: string
+    disk_warn_percent?: string
+    accent?: string
+    auto_update?: boolean
+  }) =>
     req<{ public_url: string; webhook_url?: string; version?: string }>('/api/settings', {
       method: 'PUT',
       body: JSON.stringify(body),
@@ -214,19 +231,61 @@ export const api = {
   onboarding: () => req<{ done: boolean }>('/api/onboarding'),
   finishOnboarding: () => req<{ done: boolean }>('/api/onboarding', { method: 'POST' }),
   catalog: () => req<CatalogApp[]>('/api/catalog'),
-  importPreview: (url: string) =>
+  importPreview: (url: string, compose?: string) =>
     req<ImportPreview>('/api/catalog/import', {
       method: 'POST',
-      body: JSON.stringify({ url }),
+      body: JSON.stringify(compose ? { compose } : { url }),
     }),
   importSave: (app: Record<string, unknown>) =>
     req<CatalogApp>('/api/catalog/custom', {
       method: 'POST',
       body: JSON.stringify(app),
     }),
+  importSaveMany: (apps: Record<string, unknown>[]) =>
+    req<{ apps: CatalogApp[]; count: number }>('/api/catalog/custom/batch', {
+      method: 'POST',
+      body: JSON.stringify({ apps }),
+    }),
   deleteCustom: (id: string) => req<{ ok: boolean }>(`/api/catalog/custom/${id}`, { method: 'DELETE' }),
   portCheck: (id: string) =>
     req<{ ok: boolean; conflicts: { port: string; used_by: string }[] }>(`/api/catalog/${id}/ports`),
+  stackRecommend: () =>
+    req<{
+      apps: {
+        id: string
+        name: string
+        description: string
+        installed: boolean
+        running: boolean
+        in_catalog: boolean
+      }[]
+      media_path?: string
+      downloads_path?: string
+    }>('/api/catalog/stack'),
+  changelog: () =>
+    req<{ entries: { version: string; date: string; summary: string }[]; seen: string; current: string }>(
+      '/api/changelog',
+    ),
+  changelogSeen: () => req<{ ok: boolean }>('/api/changelog/seen', { method: 'POST' }),
+  updateAllStream: async function* (): AsyncGenerator<ProgressEvent & { id?: string }> {
+    const res = await fetch('/api/apps/update-all', { method: 'POST', credentials: 'include' })
+    if (!res.ok || !res.body) throw new Error(res.statusText)
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buf = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      const lines = buf.split('\n')
+      buf = lines.pop() || ''
+      for (const line of lines) {
+        if (!line.trim()) continue
+        yield JSON.parse(line) as ProgressEvent & { id?: string }
+      }
+    }
+    if (buf.trim()) yield JSON.parse(buf) as ProgressEvent & { id?: string }
+  },
   apps: () => req<InstalledApp[]>('/api/apps'),
   app: (id: string) => req<InstalledApp>(`/api/apps/${id}`),
   appLogs: (id: string, tail = 200) =>
@@ -240,7 +299,10 @@ export const api = {
       `/api/apps/updates?pull=${pull ? '1' : '0'}`,
     ),
   appProxy: (id: string) =>
-    req<{ nginx: string; caddy: string; host: string; port: string }>(`/api/apps/${id}/proxy`),
+    req<{ nginx: string; caddy: string; traefik?: string; host: string; port: string }>(
+      `/api/apps/${id}/proxy`,
+    ),
+  appLogsStreamURL: (id: string, tail = 100) => `/api/apps/${id}/logs/stream?tail=${tail}`,
   bulkApps: (action: 'start' | 'stop' | 'restart', ids: string[]) =>
     req<{ results: { id: string; ok: boolean; error?: string; status?: string; running?: boolean }[] }>(
       '/api/apps/bulk',

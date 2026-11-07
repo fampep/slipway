@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, type InstalledApp } from '../api'
 import { AppIcon } from '../ui/AppIcon'
+import { confirmDialog } from '../ui/Confirm'
 import { useToast } from '../ui/Toast'
 
 type Filter = 'all' | 'running' | 'stopped' | 'external' | 'unhealthy'
@@ -140,6 +141,28 @@ export function Apps() {
           >
             Check updates
           </button>
+          <button
+            className="btn btn-ghost"
+            disabled={bulkBusy}
+            onClick={async () => {
+              if (!(await confirmDialog({ title: 'Update all managed apps with newer images?', confirmLabel: 'Update all' }))) return
+              setBulkBusy(true)
+              try {
+                for await (const ev of api.updateAllStream()) {
+                  if (ev.status === 'error') toast.push(ev.message, 'error')
+                  else if (ev.status === 'ready') toast.push(ev.message, 'ok')
+                  else if (ev.status === 'done') toast.push(ev.message, 'ok')
+                }
+                await refresh()
+              } catch (e) {
+                toast.push(e instanceof Error ? e.message : 'Update-all failed', 'error')
+              } finally {
+                setBulkBusy(false)
+              }
+            }}
+          >
+            Update all
+          </button>
           <Link to="/catalog" className="btn btn-primary">
             Browse catalog
           </Link>
@@ -253,11 +276,18 @@ export function Apps() {
                 </button>
                 <button
                   disabled={busy === app.id}
-                  onClick={() => {
-                    const msg = app.external
-                      ? `Unlink ${app.name} from Slipway? The existing container will keep running.`
-                      : `Remove ${app.name} and delete its container?`
-                    if (confirm(msg)) act(app.id, api.remove, app.external ? 'Unlinked' : 'Removed')
+                  onClick={async () => {
+                    const ok = await confirmDialog({
+                      title: app.external
+                        ? `Unlink ${app.name}?`
+                        : `Remove ${app.name}?`,
+                      body: app.external
+                        ? 'The existing container will keep running.'
+                        : 'This deletes the Slipway-managed container.',
+                      confirmLabel: app.external ? 'Unlink' : 'Remove',
+                      danger: true,
+                    })
+                    if (ok) act(app.id, api.remove, app.external ? 'Unlinked' : 'Removed')
                   }}
                   className="btn btn-danger !py-1.5"
                 >

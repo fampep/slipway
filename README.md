@@ -48,6 +48,7 @@ Long list of planned improvements: **[ROADMAP.md](ROADMAP.md)**
 
 ## Notes
 
-- Linux + Docker only · default port **8080**
+- Linux + Docker only · default port **8080** · images for **amd64 + arm64**
+- Optional `SLIPWAY_BIND=127.0.0.1` · Podman may work if it exposes a Docker-compatible socket
 - Put behind HTTPS / reverse proxy if public
-- MIT — see [LICENSE](LICENSE)
+- MIT — see [LICENSE](LICENSE) · roadmap: [ROADMAP.md](ROADMAP.md)

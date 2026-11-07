@@ -11,6 +11,8 @@ import { Apps } from "./pages/Apps";
 import { Catalog } from "./pages/Catalog";
 import { Overview } from "./pages/Overview";
 import { Settings } from "./pages/Settings";
+import { StackWizard } from "./pages/StackWizard";
+import { ConfirmHost } from "./ui/Confirm";
 import { ToastProvider } from "./ui/Toast";
 
 type Gate =
@@ -77,19 +79,22 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <Shell user={gate.user} onLogout={() => setGate({ status: "login" })}>
-        <AnimatePresence mode="wait">
-          <Routes>
-            <Route path="/" element={<Overview />} />
-            <Route path="/apps" element={<Apps />} />
-            <Route path="/apps/:id" element={<AppDetail />} />
-            <Route path="/catalog" element={<Catalog />} />
-            <Route path="/catalog/add" element={<AddApp />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </AnimatePresence>
-      </Shell>
+      <ConfirmHost>
+        <Shell user={gate.user} onLogout={() => setGate({ status: "login" })}>
+          <AnimatePresence mode="wait">
+            <Routes>
+              <Route path="/" element={<Overview />} />
+              <Route path="/apps" element={<Apps />} />
+              <Route path="/apps/:id" element={<AppDetail />} />
+              <Route path="/catalog" element={<Catalog />} />
+              <Route path="/catalog/add" element={<AddApp />} />
+              <Route path="/catalog/stack" element={<StackWizard />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </AnimatePresence>
+        </Shell>
+      </ConfirmHost>
     </ToastProvider>
   );
 }

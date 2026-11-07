@@ -7,8 +7,14 @@ export function Settings() {
   const [health, setHealth] = useState<Health | null>(null)
   const [publicURL, setPublicURL] = useState('')
   const [webhookURL, setWebhookURL] = useState('')
+  const [mediaPath, setMediaPath] = useState('')
+  const [downloadsPath, setDownloadsPath] = useState('')
+  const [diskWarn, setDiskWarn] = useState('85')
+  const [accent, setAccent] = useState('#2dd4bf')
+  const [autoUpdate, setAutoUpdate] = useState(false)
   const [suggested, setSuggested] = useState('')
   const [version, setVersion] = useState('dev')
+  const [changelog, setChangelog] = useState<{ version: string; date: string; summary: string }[]>([])
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -22,12 +28,25 @@ export function Settings() {
     api.getSettings().then((s) => {
       setPublicURL(s.public_url || '')
       setWebhookURL(s.webhook_url || '')
+      setMediaPath(s.media_path || '')
+      setDownloadsPath(s.downloads_path || '')
+      setDiskWarn(s.disk_warn_percent || '85')
+      if (s.accent) {
+        setAccent(s.accent)
+        document.documentElement.style.setProperty('--accent', s.accent)
+        document.documentElement.style.setProperty('--color-teal', s.accent)
+      }
+      setAutoUpdate(!!s.auto_update)
       setSuggested(s.suggested_url || '')
       if (s.version) setVersion(s.version)
     }).catch(() => {})
     api.proxySnippet().then((p) => {
       setNginx(p.nginx)
       setCaddy(p.caddy)
+    }).catch(() => {})
+    api.changelog().then((c) => {
+      setChangelog(c.entries || [])
+      if (c.seen !== c.current) void api.changelogSeen()
     }).catch(() => {})
   }, [])
 
@@ -39,7 +58,14 @@ export function Settings() {
       const out = await api.saveSettings({
         public_url: publicURL.trim(),
         webhook_url: webhookURL.trim(),
+        media_path: mediaPath.trim(),
+        downloads_path: downloadsPath.trim(),
+        disk_warn_percent: diskWarn.trim(),
+        accent,
+        auto_update: autoUpdate,
       })
+      document.documentElement.style.setProperty('--accent', accent)
+      document.documentElement.style.setProperty('--color-teal', accent)
       setSaved(true)
       if (out.version) setVersion(out.version)
       toast.push('Settings saved', 'ok')
@@ -133,19 +159,62 @@ export function Settings() {
           </button>
         )}
         <h3 className="mt-6 text-sm font-600">Webhook (optional)</h3>
-        <p className="mt-1 text-sm text-[var(--color-fog)]">Discord/Slack-compatible URL for later alerts.</p>
+        <p className="mt-1 text-sm text-[var(--color-fog)]">Fired on install/update fail and container die.</p>
         <input
           className="field mt-2"
           value={webhookURL}
           onChange={(e) => setWebhookURL(e.target.value)}
           placeholder="https://hooks.example.com/..."
         />
+        <h3 className="mt-6 text-sm font-600">Media / downloads paths</h3>
+        <input
+          className="field mt-2"
+          value={mediaPath}
+          onChange={(e) => setMediaPath(e.target.value)}
+          placeholder="/home/user/storage/media"
+        />
+        <input
+          className="field mt-2"
+          value={downloadsPath}
+          onChange={(e) => setDownloadsPath(e.target.value)}
+          placeholder="/home/user/storage/downloads"
+        />
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-sm text-[var(--color-fog)]">
+            Disk warn %
+            <input className="field mt-1.5" value={diskWarn} onChange={(e) => setDiskWarn(e.target.value)} />
+          </label>
+          <label className="text-sm text-[var(--color-fog)]">
+            Accent color
+            <input type="color" className="mt-1.5 h-10 w-full rounded-lg border border-[var(--color-line)] bg-transparent" value={accent} onChange={(e) => setAccent(e.target.value)} />
+          </label>
+        </div>
+        <label className="mt-4 flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={autoUpdate} onChange={(e) => setAutoUpdate(e.target.checked)} />
+          Opt-in auto-update flag (use Apps → Update all to apply)
+        </label>
         {error && <p className="mt-3 text-sm text-[var(--color-rose)]">{error}</p>}
         {saved && <p className="mt-3 text-sm text-[var(--ok)]">Saved</p>}
         <button disabled={busy} onClick={() => void save()} className="btn btn-primary mt-4">
           {busy ? 'Saving…' : 'Save'}
         </button>
       </div>
+
+      {changelog.length > 0 && (
+        <div className="surface p-5">
+          <h2 className="text-lg font-700">What’s new</h2>
+          <ul className="mt-3 space-y-3 text-sm">
+            {changelog.map((e) => (
+              <li key={e.version + e.date} className="border-t border-[var(--color-line)] pt-3 first:border-0 first:pt-0">
+                <div className="font-600">
+                  {e.version} <span className="text-[var(--color-fog)]">· {e.date}</span>
+                </div>
+                <p className="mt-1 text-[var(--color-fog)]">{e.summary}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="surface p-5">
         <h2 className="text-lg font-700">Change password</h2>

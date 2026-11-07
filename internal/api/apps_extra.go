@@ -136,13 +136,20 @@ func (s *Server) handleAppStats(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleImportPreview(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		URL string `json:"url"`
+		URL     string `json:"url"`
+		Compose string `json:"compose"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid json")
 		return
 	}
-	prev, err := catalog.PreviewImport(body.URL)
+	var prev *catalog.ImportPreview
+	var err error
+	if strings.TrimSpace(body.Compose) != "" {
+		prev, err = catalog.PreviewComposeYAML(body.Compose)
+	} else {
+		prev, err = catalog.PreviewImport(body.URL)
+	}
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
