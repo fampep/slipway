@@ -1,28 +1,43 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { api, type CatalogApp, type ProgressEvent } from '../api'
 import { AppIcon } from '../ui/AppIcon'
+import { confirmDialog } from '../ui/Confirm'
+import { PageSkeleton } from '../ui/Skeleton'
 import { useToast } from '../ui/Toast'
 
 const FEATURED = ['silo', 'jellyfin', 'plex', 'emby', 'radarr', 'sonarr']
 
 export function Catalog() {
   const toast = useToast()
+  const [params, setParams] = useSearchParams()
   const [apps, setApps] = useState<CatalogApp[]>([])
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('all')
   const [busyId, setBusyId] = useState<string | null>(null)
   const [progress, setProgress] = useState<ProgressEvent | null>(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [envEdit, setEnvEdit] = useState<{ id: string; env: Record<string, string> } | null>(null)
 
   async function refresh() {
     setApps(await api.catalog())
   }
 
   useEffect(() => {
-    refresh().catch((e) => setError(e.message))
+    refresh()
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false))
   }, [])
+
+  useEffect(() => {
+    const id = params.get('install')
+    if (!id || loading || !apps.length) return
+    const app = apps.find((a) => a.id === id && !a.installed)
+    if (app) void beginInstall(app)
+    setParams({}, { replace: true })
+  }, [params, loading, apps])
 
   const categories = useMemo(() => {
     const set = new Set(apps.map((a) => a.category))
@@ -38,19 +53,34 @@ export function Catalog() {
     return apps.filter((a) => {
       if (category !== 'all' && a.category !== category) return false
       if (!q.trim()) return true
-      const hay = `${a.name} ${a.description} ${a.category}`.toLowerCase()
+      const hay = `${a.name} ${a.description} ${a.category} ${a.image} ${(a.tags || []).join(' ')} ${a.web_port || ''}`.toLowerCase()
       return hay.includes(q.toLowerCase())
     })
   }, [apps, q, category])
 
-  async function install(id: string) {
+  async function beginInstall(app: CatalogApp) {
+    if (app.env && Object.keys(app.env).length) {
+      setEnvEdit({ id: app.id, env: { ...app.env } })
+      return
+    }
+    await install(app.id)
+  }
+
+  async function install(id: string, env?: Record<string, string>) {
     setBusyId(id)
     setError('')
+    setEnvEdit(null)
     try {
       const ports = await api.portCheck(id)
       if (!ports.ok && ports.conflicts.length) {
         const detail = ports.conflicts.map((c) => `${c.port} used by ${c.used_by}`).join(', ')
-        if (!confirm(`Port conflict: ${detail}. Install anyway?`)) {
+        const ok = await confirmDialog({
+          title: 'Port conflict',
+          body: `${detail}. Install anyway?`,
+          confirmLabel: 'Install anyway',
+          danger: true,
+        })
+        if (!ok) {
           setBusyId(null)
           return
         }
@@ -60,7 +90,7 @@ export function Catalog() {
     }
     setProgress({ status: 'starting', message: 'Starting install…', percent: 0 })
     try {
-      for await (const ev of api.installStream(id)) {
+      for await (const ev of api.installStream(id, env ? { env } : undefined)) {
         setProgress(ev)
         if (ev.status === 'error') throw new Error(ev.message)
       }
@@ -87,13 +117,15 @@ export function Catalog() {
     }
   }
 
+  if (loading) return <PageSkeleton />
+
   return (
     <div className="space-y-7">
       <section className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-display text-3xl font-700 tracking-tight">Catalog</h1>
           <p className="mt-1.5 text-[var(--color-fog)]">
-            One-click installs — or paste your own from GitHub.
+            One-click installs — or paste your own from GitHub. Press ⌘K to search everywhere.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -124,7 +156,7 @@ export function Catalog() {
                 ) : (
                   <button
                     disabled={busyId !== null}
-                    onClick={() => install(app.id)}
+                    onClick={() => void beginInstall(app)}
                     className="btn btn-primary !py-1.5 !text-sm"
                   >
                     {busyId === app.id ? '…' : 'Install'}
@@ -140,8 +172,9 @@ export function Catalog() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search apps"
+          placeholder="Search name, image, tag, port…"
           className="field sm:max-w-xs"
+          aria-label="Search catalog"
         />
         <div className="flex flex-wrap gap-1.5">
           {categories.map((c) => (
@@ -235,7 +268,7 @@ export function Catalog() {
                 ) : (
                   <button
                     disabled={busyId !== null}
-                    onClick={() => install(app.id)}
+                    onClick={() => void beginInstall(app)}
                     className="btn btn-primary"
                   >
                     {busyId === app.id ? 'Installing…' : 'Install'}
@@ -244,6 +277,40 @@ export function Catalog() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {envEdit && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 px-4 backdrop-blur-sm">
+          <div className="surface w-full max-w-lg p-5" role="dialog" aria-modal="true" aria-label="Environment">
+            <h2 className="text-lg font-700">Environment for {envEdit.id}</h2>
+            <p className="mt-1 text-sm text-[var(--color-fog)]">Adjust values before install.</p>
+            <div className="mt-4 max-h-72 space-y-3 overflow-auto">
+              {Object.keys(envEdit.env).map((k) => (
+                <label key={k} className="block text-sm text-[var(--color-fog)]">
+                  {k}
+                  <input
+                    className="field mt-1 font-mono text-xs"
+                    value={envEdit.env[k]}
+                    onChange={(e) =>
+                      setEnvEdit({
+                        ...envEdit,
+                        env: { ...envEdit.env, [k]: e.target.value },
+                      })
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button className="btn btn-ghost" onClick={() => setEnvEdit(null)}>
+                Cancel
+              </button>
+              <button className="btn btn-primary" onClick={() => void install(envEdit.id, envEdit.env)}>
+                Install
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import {
   api,
   formatBytes,
@@ -10,12 +10,14 @@ import {
   type UpdateCheck,
 } from '../api'
 import { AppIcon } from '../ui/AppIcon'
+import { PageSkeleton } from '../ui/Skeleton'
 import { useToast } from '../ui/Toast'
 
 type Tab = 'overview' | 'logs' | 'config' | 'connect'
 
 export function AppDetail() {
   const { id = '' } = useParams()
+  const [params] = useSearchParams()
   const toast = useToast()
   const [app, setApp] = useState<InstalledApp | null>(null)
   const [tab, setTab] = useState<Tab>('overview')
@@ -33,6 +35,11 @@ export function AppDetail() {
     const found = await api.app(id)
     setApp(found)
   }
+
+  useEffect(() => {
+    const t = params.get('tab')
+    if (t === 'logs' || t === 'config' || t === 'connect' || t === 'overview') setTab(t)
+  }, [params])
 
   useEffect(() => {
     refresh().catch((e) => setError(e.message))
@@ -145,7 +152,7 @@ export function AppDetail() {
   }
 
   if (!app && !error) {
-    return <p className="text-[var(--color-fog)]">Loading…</p>
+    return <PageSkeleton />
   }
 
   if (!app) {
@@ -191,11 +198,22 @@ export function AppDetail() {
             <p className="mt-2 max-w-xl text-[var(--color-fog)]">{app.description}</p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="hidden flex-wrap gap-2 sm:flex">
           {app.url && (
-            <a href={app.url} target="_blank" rel="noreferrer" className="btn btn-primary">
-              Open
-            </a>
+            <>
+              <a href={app.url} target="_blank" rel="noreferrer" className="btn btn-primary">
+                Open
+              </a>
+              <button
+                className="btn btn-ghost"
+                onClick={async () => {
+                  await navigator.clipboard.writeText(app.url!)
+                  toast.push('URL copied', 'ok')
+                }}
+              >
+                Copy URL
+              </button>
+            </>
           )}
           {app.running ? (
             <button disabled={busy} onClick={() => act(api.stop)} className="btn btn-ghost">
@@ -222,6 +240,31 @@ export function AppDetail() {
           )}
         </div>
       </section>
+
+      <div className="fixed inset-x-0 bottom-16 z-30 border-t border-[var(--color-line)] bg-[rgba(11,16,22,0.94)] px-3 py-2 backdrop-blur-md sm:hidden">
+        <div className="mx-auto flex max-w-5xl gap-2 overflow-x-auto">
+          {app.url && (
+            <a href={app.url} target="_blank" rel="noreferrer" className="btn btn-primary !py-2 !text-sm whitespace-nowrap">
+              Open
+            </a>
+          )}
+          {app.running ? (
+            <button disabled={busy} onClick={() => act(api.stop)} className="btn btn-ghost !py-2 !text-sm">
+              Stop
+            </button>
+          ) : (
+            <button disabled={busy} onClick={() => act(api.start)} className="btn btn-ghost !py-2 !text-sm">
+              Start
+            </button>
+          )}
+          <button disabled={busy} onClick={() => act(api.restart)} className="btn btn-ghost !py-2 !text-sm">
+            Restart
+          </button>
+          <button className="btn btn-ghost !py-2 !text-sm" onClick={() => setTab('logs')}>
+            Logs
+          </button>
+        </div>
+      </div>
 
       {error && <p className="text-sm text-[var(--color-rose)]">{error}</p>}
 

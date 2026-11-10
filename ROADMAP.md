@@ -67,8 +67,8 @@ Higher = sooner. Check items off as they ship.
 - [x] Toasts + confirm dialogs + focus rings
 - [x] Onboarding checklist + empty states
 - [x] Accent color picker
-- [ ] Keyboard shortcuts / command palette
-- [ ] Full skeleton loaders everywhere
+- [x] Keyboard shortcuts / command palette (⌘K / /)
+- [x] Skeleton loaders on Overview, Apps, Catalog, App detail
 - [ ] Accessibility audit pass
 
 ---

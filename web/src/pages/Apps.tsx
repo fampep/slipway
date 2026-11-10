@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api, type InstalledApp } from '../api'
 import { AppIcon } from '../ui/AppIcon'
 import { confirmDialog } from '../ui/Confirm'
+import { PageSkeleton } from '../ui/Skeleton'
 import { useToast } from '../ui/Toast'
 
 type Filter = 'all' | 'running' | 'stopped' | 'external' | 'unhealthy'
@@ -24,13 +25,16 @@ export function Apps() {
   const [filter, setFilter] = useState<Filter>('all')
   const [q, setQ] = useState('')
   const [bulkBusy, setBulkBusy] = useState(false)
+  const [loading, setLoading] = useState(true)
 
   async function refresh() {
     setApps(await api.apps())
   }
 
   useEffect(() => {
-    refresh().catch((e) => setError(e.message))
+    refresh()
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false))
   }, [])
 
   const filtered = useMemo(() => {
@@ -111,6 +115,8 @@ export function Apps() {
     { id: 'external', label: 'On host' },
     { id: 'unhealthy', label: 'Unhealthy' },
   ]
+
+  if (loading) return <PageSkeleton />
 
   return (
     <div className="space-y-7">

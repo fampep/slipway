@@ -12,6 +12,8 @@ import {
   type Metrics,
 } from '../api'
 import { AppIcon } from '../ui/AppIcon'
+import { PageSkeleton } from '../ui/Skeleton'
+import { useToast } from '../ui/Toast'
 
 function Bar({ pct, warn = false }: { pct: number; warn?: boolean }) {
   return (
@@ -40,17 +42,22 @@ function attentionLabel(app: InstalledApp) {
 }
 
 export function Overview() {
+  const toast = useToast()
   const [metrics, setMetrics] = useState<Metrics | null>(null)
   const [apps, setApps] = useState<InstalledApp[]>([])
   const [docker, setDocker] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   useEffect(() => {
     let alive = true
-    api.metrics().then((m) => alive && setMetrics(m)).catch(() => {})
-    api.apps().then((a) => alive && setApps(a)).catch(() => {})
-    api.health().then((h) => alive && setDocker(h.docker)).catch(() => {})
-    api.onboarding().then((o) => alive && setShowOnboarding(!o.done)).catch(() => {})
+    Promise.all([
+      api.metrics().then((m) => alive && setMetrics(m)).catch(() => {}),
+      api.apps().then((a) => alive && setApps(a)).catch(() => {}),
+      api.health().then((h) => alive && setDocker(h.docker)).catch(() => {}),
+      api.onboarding().then((o) => alive && setShowOnboarding(!o.done)).catch(() => {}),
+    ]).finally(() => alive && setLoading(false))
 
     const ws = new WebSocket(wsURL())
     ws.onmessage = (ev) => {
@@ -81,6 +88,26 @@ export function Overview() {
     const ids = new Set(pinned.map((a) => a.id))
     return [...pinned, ...apps.filter((a) => !ids.has(a.id))]
   }, [apps, pinned])
+
+  async function quickAct(id: string, action: 'start' | 'stop' | 'restart') {
+    setBusyId(id)
+    try {
+      if (action === 'start') await api.start(id)
+      else if (action === 'stop') await api.stop(id)
+      else await api.restart(id)
+      setApps(await api.apps())
+      toast.push(action === 'stop' ? 'Stopped' : action === 'start' ? 'Started' : 'Restarted', 'ok')
+    } catch (e) {
+      toast.push(e instanceof Error ? e.message : 'Action failed', 'error')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  if (loading && !metrics) {
+    return <PageSkeleton />
+  }
+
   const disks: DiskVolume[] = metrics?.disks?.length
     ? metrics.disks
     : metrics
@@ -120,6 +147,29 @@ export function Overview() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={!apps.some((a) => a.running) || busyId === '__restart_all'}
+              onClick={() => {
+                void (async () => {
+                  setBusyId('__restart_all')
+                  try {
+                    for (const a of apps.filter((x) => x.running)) {
+                      await api.restart(a.id)
+                    }
+                    setApps(await api.apps())
+                    toast.push('Restarted running services', 'ok')
+                  } catch (e) {
+                    toast.push(e instanceof Error ? e.message : 'Restart failed', 'error')
+                  } finally {
+                    setBusyId(null)
+                  }
+                })()
+              }}
+            >
+              Restart running
+            </button>
             <Link to="/apps" className="btn btn-ghost">
               Manage apps
             </Link>
@@ -202,6 +252,23 @@ export function Overview() {
         </section>
       )}
 
+      {metrics && (metrics.cpu_percent > 90 || metrics.mem_percent > 90 || disks.some((d) => d.percent > 90)) && (
+        <section className="surface border-[var(--color-rose)]/40 px-5 py-4" role="status">
+          <h2 className="font-700 text-[var(--color-rose)]">Resource pressure</h2>
+          <ul className="mt-2 space-y-1 text-sm text-[var(--color-fog)]">
+            {metrics.cpu_percent > 90 && <li>CPU at {metrics.cpu_percent.toFixed(0)}%</li>}
+            {metrics.mem_percent > 90 && <li>Memory at {metrics.mem_percent.toFixed(0)}%</li>}
+            {disks
+              .filter((d) => d.percent > 90)
+              .map((d) => (
+                <li key={`${d.device}-${d.mountpoint}`}>
+                  Disk {d.mountpoint || d.device} at {d.percent.toFixed(0)}%
+                </li>
+              ))}
+          </ul>
+        </section>
+      )}
+
       {attention.length > 0 && (
         <section className="surface border-[var(--color-amber)]/35 px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -253,29 +320,62 @@ export function Overview() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(i * 0.04, 0.24), duration: 0.3 }}
               >
-                <Link
-                  to={`/apps/${app.id}`}
-                  className="surface group flex h-full items-start gap-3 p-4 transition hover:border-[var(--color-teal)]/35"
-                >
-                  <AppIcon icon={app.icon} name={app.name} size="md" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="font-600 group-hover:text-[var(--color-teal)]">{app.name}</div>
-                      {app.favorite && <span className="badge badge-accent">pinned</span>}
-                      <span className={`badge ${app.running ? 'badge-ok' : 'badge-muted'}`}>
-                        {app.running ? 'running' : 'stopped'}
-                      </span>
+                <div className="surface group flex h-full flex-col gap-3 p-4 transition hover:border-[var(--color-teal)]/35">
+                  <Link to={`/apps/${app.id}`} className="flex min-w-0 items-start gap-3">
+                    <AppIcon icon={app.icon} name={app.name} size="md" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="font-600 group-hover:text-[var(--color-teal)]">{app.name}</div>
+                        {app.favorite && <span className="badge badge-accent">pinned</span>}
+                        <span className={`badge ${app.running ? 'badge-ok' : 'badge-muted'}`}>
+                          {app.running ? 'running' : 'stopped'}
+                        </span>
+                      </div>
+                      <div className="mt-1 truncate text-xs text-[var(--color-fog)]">
+                        {app.container_name || app.status}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {app.external && <span className="badge badge-accent">on host</span>}
+                        {app.health === 'unhealthy' && <span className="badge badge-danger">unhealthy</span>}
+                        {app.health === 'healthy' && <span className="badge badge-ok">healthy</span>}
+                      </div>
                     </div>
-                    <div className="mt-1 truncate text-xs text-[var(--color-fog)]">
-                      {app.container_name || app.status}
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {app.external && <span className="badge badge-accent">on host</span>}
-                      {app.health === 'unhealthy' && <span className="badge badge-danger">unhealthy</span>}
-                      {app.health === 'healthy' && <span className="badge badge-ok">healthy</span>}
-                    </div>
+                  </Link>
+                  <div className="flex flex-wrap gap-1.5 border-t border-[var(--color-line)] pt-3">
+                    {app.url && (
+                      <a href={app.url} target="_blank" rel="noreferrer" className="btn btn-ghost !py-1 !text-xs">
+                        Open
+                      </a>
+                    )}
+                    {app.running ? (
+                      <button
+                        disabled={busyId === app.id}
+                        className="btn btn-ghost !py-1 !text-xs"
+                        onClick={() => void quickAct(app.id, 'stop')}
+                      >
+                        Stop
+                      </button>
+                    ) : (
+                      <button
+                        disabled={busyId === app.id}
+                        className="btn btn-ghost !py-1 !text-xs"
+                        onClick={() => void quickAct(app.id, 'start')}
+                      >
+                        Start
+                      </button>
+                    )}
+                    <button
+                      disabled={busyId === app.id}
+                      className="btn btn-ghost !py-1 !text-xs"
+                      onClick={() => void quickAct(app.id, 'restart')}
+                    >
+                      Restart
+                    </button>
+                    <Link to={`/apps/${app.id}?tab=logs`} className="btn btn-ghost !py-1 !text-xs">
+                      Logs
+                    </Link>
                   </div>
-                </Link>
+                </div>
               </motion.div>
             ))}
           </div>
